@@ -68,6 +68,48 @@ Record<string, Reply[]>
 
 This supports fast post-detail rendering and gives the future backend a clear aggregation boundary. Nested threads should add `parentReplyId` rather than changing this basic model.
 
+### Durable world store
+
+`stores/worldStore.ts` is the root of the local world model. It stores:
+
+- World identity and metadata
+- The active world ID
+- Privacy and cover settings
+- Gameplay settings
+- Story and NPC guidance
+- News behavior
+
+World creation uses `createWorld()` and immediately activates the new world. Customize World writes through `updateWorld()` and `updateSettings()` rather than keeping screen-only values.
+
+The store persists through the shared SQLite key-value adapter:
+
+```text
+worldStore
+  └── db/worldPersistence.ts
+      └── social_store
+```
+
+Other stores currently use the same adapter with separate keys. Feed persistence remains in `db/feedPersistence.ts` because it has a larger typed snapshot and its own hydration contract.
+
+### Persisted stores
+
+| Store | Persistence key | Stored data |
+| --- | --- | --- |
+| `worldStore` | `worlds` | Worlds, active world |
+| `storyStore` | `stories` | Stories, comments, likes, viewed state |
+| `messageStore` | `messages` | Conversations and messages |
+| `eventStore` | `events` | Event completion and player progression |
+| `activityLogStore` | `activity-log` | Recent world activity |
+| `notificationStore` | `notifications` | Typed notifications and read state |
+
+Each store hydrates synchronously when its module is loaded and writes its updated state after mutations. The persistence boundary is intentionally local-first; account sync and conflict resolution are future backend responsibilities.
+
+### Notifications
+
+`stores/notificationStore.ts` owns typed player-facing notifications. Supported types include replies, mentions, likes, reposts, follows, story replies, messages, relationship changes, and event outcomes.
+
+Notifications are persisted independently from the feed so the unread badge survives navigation and app restarts. The tab layout derives its badge from unread records, and the notifications screen marks records read when opened.
+
 ### Profile store
 
 `stores/profileStore.ts` owns the player-controlled profile:

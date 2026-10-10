@@ -27,6 +27,8 @@ export type Post = {
   repostedByPlayer?: boolean;
 };
 
+export type ReplyStatus = 'sending' | 'sent' | 'failed';
+
 export type Reply = {
   id: string;
   postId: string;
@@ -39,6 +41,8 @@ export type Reply = {
   likes: number;
   createdAt: number;
   likedByPlayer?: boolean;
+  status?: ReplyStatus;
+  error?: string;
 };
 
 export type NPCArchetype = 'rival' | 'ally' | 'authority' | 'commentator';
@@ -75,6 +79,7 @@ export type RelationshipState = {
   npcId: string;
   affinity: number;
   sentiment: 'hostile' | 'suspicious' | 'neutral' | 'amused' | 'supportive';
+  chemistry?: 'friends' | 'lovers' | 'rivals' | 'childhood-friends' | 'acquaintances';
   lastInteractionAt: number;
 };
 

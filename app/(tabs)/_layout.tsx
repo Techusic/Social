@@ -1,8 +1,10 @@
 import { Tabs } from 'expo-router';
 import { Foundation, Feather, Ionicons } from '@expo/vector-icons';
 import { View } from 'react-native';
+import { useNotificationStore } from '../../stores/notificationStore';
 
 export default function TabLayout() {
+  const unreadCount = useNotificationStore((state) => state.notifications.filter((item) => !item.read).length);
   return (
     <Tabs
       screenOptions={{
@@ -51,7 +53,7 @@ export default function TabLayout() {
           tabBarIcon: ({ color }) => (
             <View className="relative">
               <Ionicons name="notifications" size={26} color={color} />
-              <View className="absolute top-0 right-0 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-[#0A0A0A]" />
+              {unreadCount > 0 && <View className="absolute top-0 right-0 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-[#0A0A0A]" />}
             </View>
           ) 
         }} 

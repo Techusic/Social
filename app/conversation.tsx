@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Alert, KeyboardAvoidingView, Platform, ScrollView, Text, TextInput, TouchableOpacity, View, Image } from 'react-native';
 import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useMessageStore } from '../stores/messageStore';
 
 function formatTime(timestamp: number): string {
@@ -10,7 +10,9 @@ function formatTime(timestamp: number): string {
 }
 
 export default function Conversation() {
-  const conversation = useMessageStore((state) => state.conversations.ginny);
+  const { id } = useLocalSearchParams<{ id?: string }>();
+  const conversationId = typeof id === 'string' ? id : 'ginny';
+  const conversation = useMessageStore((state) => state.conversations[conversationId]);
   const sendMessage = useMessageStore((state) => state.sendMessage);
   const markConversationRead = useMessageStore((state) => state.markConversationRead);
   const [draft, setDraft] = useState('');
@@ -18,8 +20,8 @@ export default function Conversation() {
   const [ratedMessages, setRatedMessages] = useState<string[]>([]);
 
   useEffect(() => {
-    markConversationRead('ginny');
-  }, [markConversationRead]);
+    markConversationRead(conversationId);
+  }, [conversationId, markConversationRead]);
 
   if (!conversation) return null;
 

@@ -39,7 +39,7 @@ export default function Chat() {
         </TouchableOpacity>
       </View>
 
-      <TouchableOpacity onPress={() => router.push('/add-character')} className="absolute bottom-6 right-4 w-14 h-14 bg-blue-500 rounded-full items-center justify-center shadow-lg">
+      <TouchableOpacity onPress={() => router.push('/new-chat')} className="absolute bottom-6 right-4 w-14 h-14 bg-blue-500 rounded-full items-center justify-center shadow-lg" accessibilityLabel="Start a new chat">
         <Feather name="plus" size={28} color="white" />
       </TouchableOpacity>
     </SafeAreaView>

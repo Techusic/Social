@@ -14,6 +14,7 @@ This document is the implementation log and handoff checklist for the Social app
 - Added Expo Font for vector icon compatibility.
 - Added `userInterfaceStyle` configuration.
 - Added ignore rules for dependencies, Expo output, build artifacts, native folders, and local npm configuration.
+- Added a shared SQLite key-value persistence adapter for local-first state.
 
 ### Feed and post system
 
@@ -38,6 +39,26 @@ This document is the implementation log and handoff checklist for the Social app
 - Added persistent in-memory `repliesByPost` state.
 - Added reply creation with player metadata.
 - Incremented post comment counts when a reply is created.
+- Added player-relevant notification filtering for replies and mentions.
+
+### Durable worlds and persistence
+
+- Added a typed world model with active-world selection.
+- Connected custom world creation to the durable world store.
+- Persisted world metadata and Customize World settings.
+- Persisted stories, story comments, viewed state, and likes.
+- Persisted conversations, messages, events, progression, and activity logs.
+- Added persisted typed notifications with unread state.
+- Connected the notification tab badge to unread notification state.
+
+### Settings-driven simulation
+
+- Difficulty now scales event consequences.
+- Madness Scale changes NPC activity and story frequency.
+- Universe Stories controls NPC story creation.
+- News Accounts controls news-account publishing.
+- NPC likes, reposts, follows, replies, and relationship changes can generate notifications.
+- Added focused tests for world rules and player-relevant replies.
 - Updated player reply statistics and reach.
 - Added a reply composer with keyboard submit and send button.
 - Made the main Reply action focus the composer.
@@ -172,12 +193,11 @@ This document is the implementation log and handoff checklist for the Social app
 
 ### Production integrations
 
-The local prototype surface is complete. The following work requires external services or native product decisions:
+The local-first prototype surface is complete. The following work requires external services or native product decisions:
 
-- Persist Zustand state with a database and account sync.
 - Add authentication, moderation/reporting, and privacy controls.
 - Replace template NPC generation with an approved hosted or on-device model adapter.
-- Add push notifications and background scheduling.
+- Add remote push notifications and background scheduling.
 - Add real App Store purchases/subscriptions through a development build.
 - Add media upload/CDN storage and production analytics.
 
@@ -187,40 +207,33 @@ Status: Core implementation complete. Advanced balancing and persistence remain.
 
 - Separate chronological mode from ranked mode.
 - Add pagination or virtualized rendering when the feed grows.
-- Add tests for ranking and interaction changes.
+- Add more tests for ranking and interaction changes.
 
 ### 2. Expand the reply system
 
 - Support threaded replies with parent reply IDs.
 - Add reply likes, reposts, and reply-specific reaction state.
 - Add mention autocomplete and author context.
-- Add optimistic submission, error state, retry, and duplicate-submit protection.
-- Persist replies through a database or API.
+- Add server synchronization and moderation for replies.
 
 ### 3. Build the NPC simulation layer
 
-Status: Core local simulation complete. Broader autonomous behavior remains.
+Status: Core local simulation and settings integration complete. Broader autonomous behavior remains.
 
-- Add bot-to-bot reactions.
-- Add explicit reaction thresholds per NPC archetype.
 - Connect NPC simulation to DMs and world events.
 - Add narrative-day and event-aware triggers.
-- Add deterministic seeded simulation tests.
+- Add background simulation scheduling independent of the feed screen.
 
 ### 4. Complete messaging
 
 Status: Local prototype complete. Remote synchronization remains.
 
-- Move messages into a shared store.
-- Add conversation IDs and participant metadata.
-- Add typing indicators and read receipts.
-- Add message delivery states.
 - Add branching dialogue based on player choices and relationships.
-- Add in-app notification badges for proactive DMs.
+- Add server synchronization and background proactive DMs.
 
 ### 5. Add world events and progression
 
-Status: Local prototype complete. Additional event content remains.
+Status: Local prototype and persistence complete. Additional event content remains.
 
 - Add randomized event cards.
 - Add event choice models.

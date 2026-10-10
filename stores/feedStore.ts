@@ -1,6 +1,15 @@
 import { create } from 'zustand';
+
+import { loadFeedSnapshot, saveFeedSnapshot } from '../db/feedPersistence';
+import type { FeedMode } from '../db/feedPersistence';
 import type { NPCMemory, NPCProfile, PlayerEngagementStats, Post, RelationshipState, Reply } from '../types/feed';
+import { getVisiblePosts, rankPosts, sortPostsChronologically } from '../utils/feedRanking';
 import { decideNpcAction, generateNpcText } from '../utils/npcEngine';
+import { useActivityLogStore } from './activityLogStore';
+import { useStoryStore } from './storyStore';
+import { addNotification } from './notificationStore';
+import { getActiveWorld } from './worldStore';
+import { isPlayerRelevantReply, npcChaosMultiplier, shouldGenerateNpcStory } from '../utils/worldRules';
 
 type NewPost = Pick<Post, 'content' | 'media'>;
 type NewReply = Pick<Reply, 'authorId' | 'authorName' | 'authorHandle' | 'avatar' | 'body' | 'parentReplyId'>;
@@ -12,13 +21,18 @@ type FeedStore = {
   memories: Record<string, NPCMemory[]>;
   simulationTick: number;
   playerStats: PlayerEngagementStats;
+  feedMode: FeedMode;
   toggleLike: (postId: string) => void;
   toggleRepost: (postId: string) => void;
   addReply: (postId: string, reply: NewReply) => void;
+  retryReply: (postId: string, replyId: string) => void;
   publishPost: (post: NewPost) => void;
   getRankedPosts: () => Post[];
+  getVisiblePosts: () => Post[];
+  setFeedMode: (mode: FeedMode) => void;
   simulateNpcTick: () => void;
   adjustRelationship: (npcId: string, amount: number) => void;
+  setRelationshipChemistry: (npcId: string, chemistry: NonNullable<RelationshipState['chemistry']>) => void;
   toggleReplyLike: (postId: string, replyId: string) => void;
 };
 
@@ -83,6 +97,13 @@ const initialReplies: Record<string, Reply[]> = {
     { id: 'cauldron-crash', postId: 'ginny-owl-respect', authorId: 'cauldron-crash', authorName: 'cauldron_crash', authorHandle: '@cauldron_crash', avatar: 'https://i.pravatar.cc/150?u=cauldron-crash', body: 'imagine the amount of bird seed the school spends on them while our feast is just potato mash', likes: 557, createdAt: now - 1000 * 60 * 5 },
     { id: 'perfect-probs', postId: 'ginny-owl-respect', authorId: 'perfect-probs', authorName: 'perfect_probs', authorHandle: '@perfect_probs', avatar: 'https://i.pravatar.cc/150?u=perfect-probs', body: '@thebestweasley tell us how you really feel ginevra', likes: 193, createdAt: now - 1000 * 60 * 3 },
   ],
+  'quidditch-stats': [
+    { id: 'quidditch-reply-1', postId: 'quidditch-stats', authorId: 'ginny', authorName: 'Ginny Weasley', authorHandle: '@thebestweasley', avatar: 'https://i.pravatar.cc/150?u=ginny', body: 'Three catches is a pattern, not a bad afternoon.', likes: 84, createdAt: now - 1000 * 60 * 22 },
+    { id: 'quidditch-reply-2', postId: 'quidditch-stats', authorId: 'hermione', authorName: 'Hermione Granger', authorHandle: '@actually_reading', avatar: 'https://i.pravatar.cc/150?u=hermione', body: 'Please cite the match footage before declaring a conspiracy.', likes: 51, createdAt: now - 1000 * 60 * 18 },
+  ],
+  'hermione-library': [
+    { id: 'library-reply-1', postId: 'hermione-library', authorId: 'ginny', authorName: 'Ginny Weasley', authorHandle: '@thebestweasley', avatar: 'https://i.pravatar.cc/150?u=ginny', body: 'What if the restricted section is simply asking to be read?', likes: 120, createdAt: now - 1000 * 60 * 48 },
+  ],
 };
 
 export const npcProfiles: NPCProfile[] = [
@@ -98,6 +119,7 @@ const initialRelationships: Record<string, RelationshipState> = Object.fromEntri
       npcId: npc.id,
       affinity: npc.id === 'ginny' ? 0.9 : npc.id === 'hermione' ? 0.6 : 0.45,
       sentiment: npc.id === 'ginny' ? 'amused' : 'neutral',
+      chemistry: npc.id === 'ginny' ? 'rivals' : 'acquaintances',
       lastInteractionAt: now,
     },
   ]),
@@ -109,27 +131,8 @@ const initialMemories: Record<string, NPCMemory[]> = {
   'quidditch-stats': [],
 };
 
-function rankPost(post: Post, currentTime: number): number {
-  const ageInHours = Math.max(0, (currentTime - post.createdAt) / (1000 * 60 * 60));
-  const freshness = Math.max(0, 1 - ageInHours / 48);
-  const engagement = Math.min(1, Math.log10(post.likes + post.reposts * 2 + post.comments * 3 + 1) / 8);
-  const velocity = Math.min(1, (post.comments * 4 + post.reposts * 2 + post.likes) / Math.max(1, post.views));
-  const playerSignal =
-    (post.likedByPlayer ? 0.3 : 0) +
-    (post.repostedByPlayer ? 0.4 : 0) +
-    post.affinity * 0.25;
-
-  return freshness * 0.3 + engagement * 0.22 + velocity * 0.13 + post.tension * 0.2 + playerSignal * 0.15;
-}
-
-export function rankPosts(posts: Post[], currentTime = Date.now()): Post[] {
-  return [...posts].sort((a, b) => {
-    const scoreDifference = rankPost(b, currentTime) - rankPost(a, currentTime);
-    return Math.abs(scoreDifference) > 0.0001 ? scoreDifference : b.createdAt - a.createdAt;
-  });
-}
-
-export const useFeedStore = create<FeedStore>((set, get) => ({
+const persistedFeedState = loadFeedSnapshot();
+const hydratedFeedState = persistedFeedState ?? {
   posts: initialPosts,
   repliesByPost: initialReplies,
   relationships: initialRelationships,
@@ -141,6 +144,23 @@ export const useFeedStore = create<FeedStore>((set, get) => ({
     repostsMade: 0,
     reach: 0,
   },
+  feedMode: 'ranked',
+};
+
+if (!persistedFeedState) {
+  saveFeedSnapshot(hydratedFeedState);
+}
+
+export { getVisiblePosts, rankPosts, sortPostsChronologically } from '../utils/feedRanking';
+
+export const useFeedStore = create<FeedStore>((set, get) => ({
+  posts: hydratedFeedState.posts,
+  repliesByPost: hydratedFeedState.repliesByPost,
+  relationships: hydratedFeedState.relationships,
+  memories: hydratedFeedState.memories,
+  simulationTick: hydratedFeedState.simulationTick,
+  playerStats: hydratedFeedState.playerStats,
+  feedMode: hydratedFeedState.feedMode ?? 'ranked',
 
   toggleLike: (postId) =>
     set((state) => {
@@ -148,6 +168,9 @@ export const useFeedStore = create<FeedStore>((set, get) => ({
       if (!post) return state;
 
       const liked = !post.likedByPlayer;
+      if (liked) {
+        useActivityLogStore.getState().record({ kind: 'social', title: 'Liked a post', detail: `You liked ${post.authorName}'s post.` });
+      }
       return {
         posts: state.posts.map((item) =>
           item.id === postId
@@ -162,13 +185,19 @@ export const useFeedStore = create<FeedStore>((set, get) => ({
       };
     }),
 
-  toggleRepost: (postId) =>
-    set((state) => {
-      const post = state.posts.find((item) => item.id === postId);
-      if (!post) return state;
+  toggleRepost: (postId) => {
+    const post = get().posts.find((item) => item.id === postId);
+    if (!post) return;
 
-      const reposted = !post.repostedByPlayer;
-      return {
+    const reposted = !post.repostedByPlayer;
+    useActivityLogStore.getState().record({
+      kind: 'social',
+      title: reposted ? 'Reposted a post' : 'Undid a repost',
+      detail: `${reposted ? 'You reposted' : 'You removed your repost from'} ${post.authorName}'s post.`,
+    });
+
+    set((state) => ({
+        ...state,
         posts: state.posts.map((item) =>
           item.id === postId
             ? { ...item, repostedByPlayer: reposted, reposts: Math.max(0, item.reposts + (reposted ? 1 : -1)), tension: Math.min(1, item.tension + (reposted ? 0.04 : -0.02)) }
@@ -179,24 +208,118 @@ export const useFeedStore = create<FeedStore>((set, get) => ({
           repostsMade: Math.max(0, state.playerStats.repostsMade + (reposted ? 1 : -1)),
           reach: Math.max(0, state.playerStats.reach + (reposted ? Math.ceil((post.tension + post.affinity) * 10) : -Math.ceil((post.tension + post.affinity) * 10))),
         },
+    }));
+  },
+
+  addReply: (postId, reply) =>
+    set((state) => {
+      const body = reply.body.trim();
+      if (!body) {
+        return state;
+      }
+
+      const existingReplies = state.repliesByPost[postId] ?? [];
+      const duplicateReply = existingReplies.some((existingReply) => {
+        if (existingReply.authorId !== reply.authorId || existingReply.parentReplyId !== reply.parentReplyId) {
+          return false;
+        }
+
+        const sameBody = existingReply.body.trim() === body;
+        if (!sameBody) {
+          return false;
+        }
+
+        const ageMs = Date.now() - existingReply.createdAt;
+        return ageMs < 5000;
+      });
+
+      if (duplicateReply) {
+        return state;
+      }
+
+      const nextReply: Reply = {
+        ...reply,
+        body,
+        postId,
+        id: `${reply.authorId}-${Date.now()}`,
+        likes: 0,
+        createdAt: Date.now(),
+        status: 'sending',
+      };
+      useActivityLogStore.getState().record({ kind: 'social', title: 'Replied to a post', detail: body });
+      const post = state.posts.find((item) => item.id === postId);
+      if (post?.authorId === 'player') {
+        addNotification('reply', { actorId: reply.authorId, actorName: reply.authorName, actorAvatar: reply.avatar, title: `${reply.authorName} replied to your post`, body, targetId: postId });
+      } else if (isPlayerRelevantReply(post?.authorId ?? '', reply.authorId, body)) {
+        addNotification('mention', { actorId: reply.authorId, actorName: reply.authorName, actorAvatar: reply.avatar, title: `${reply.authorName} mentioned you`, body, targetId: postId });
+      }
+
+      const shouldFail = /(?:^|\s)(?:fail|error)(?:\s|$)/i.test(body);
+      setTimeout(() => {
+        set((innerState) => ({
+          repliesByPost: {
+            ...innerState.repliesByPost,
+            [postId]: (innerState.repliesByPost[postId] ?? []).map((item) =>
+              item.id === nextReply.id
+                ? {
+                    ...item,
+                    status: shouldFail ? 'failed' : 'sent',
+                    error: shouldFail ? 'Reply failed to send. Retry.' : undefined,
+                  }
+                : item,
+            ),
+          },
+        }));
+      }, 500);
+
+      return {
+        repliesByPost: {
+          ...state.repliesByPost,
+          [postId]: [...existingReplies, nextReply],
+        },
+        posts: state.posts.map((item) =>
+          item.id === postId ? { ...item, comments: item.comments + 1, tension: Math.min(1, item.tension + 0.03) } : item,
+        ),
+        playerStats: {
+          ...state.playerStats,
+          repliesWritten: state.playerStats.repliesWritten + 1,
+          reach: state.playerStats.reach + Math.ceil(2 + postAffinity(state.posts, postId) * 3),
+        },
       };
     }),
 
-  addReply: (postId, reply) =>
-    set((state) => ({
-      repliesByPost: {
-        ...state.repliesByPost,
-        [postId]: [...(state.repliesByPost[postId] ?? []), { ...reply, postId, id: `${reply.authorId}-${Date.now()}`, likes: 0, createdAt: Date.now() }],
-      },
-      posts: state.posts.map((item) =>
-        item.id === postId ? { ...item, comments: item.comments + 1, tension: Math.min(1, item.tension + 0.03) } : item,
-      ),
-      playerStats: {
-        ...state.playerStats,
-        repliesWritten: state.playerStats.repliesWritten + 1,
-        reach: state.playerStats.reach + Math.ceil(2 + postAffinity(state.posts, postId) * 3),
-      },
-    })),
+  retryReply: (postId, replyId) =>
+    set((state) => {
+      const currentReply = (state.repliesByPost[postId] ?? []).find((reply) => reply.id === replyId);
+      if (!currentReply) return state;
+
+      const shouldFail = /(?:^|\s)(?:fail|error)(?:\s|$)/i.test(currentReply.body);
+      setTimeout(() => {
+        set((innerState) => ({
+          repliesByPost: {
+            ...innerState.repliesByPost,
+            [postId]: (innerState.repliesByPost[postId] ?? []).map((reply) =>
+              reply.id === replyId
+                ? {
+                    ...reply,
+                    status: shouldFail ? 'failed' : 'sent',
+                    error: shouldFail ? 'Reply failed to send. Retry.' : undefined,
+                  }
+                : reply,
+            ),
+          },
+        }));
+      }, 500);
+
+      return {
+        repliesByPost: {
+          ...state.repliesByPost,
+          [postId]: (state.repliesByPost[postId] ?? []).map((reply) =>
+            reply.id === replyId ? { ...reply, status: 'sending', error: undefined } : reply,
+          ),
+        },
+      };
+    }),
 
   publishPost: ({ content, media }) =>
     set((state) => ({
@@ -223,12 +346,25 @@ export const useFeedStore = create<FeedStore>((set, get) => ({
     })),
 
   getRankedPosts: () => rankPosts(get().posts),
+  getVisiblePosts: () => getVisiblePosts(get().posts, get().feedMode),
+  setFeedMode: (mode) => set({ feedMode: mode }),
 
   adjustRelationship: (npcId, amount) =>
     set((state) => {
       const relationship = state.relationships[npcId];
       if (!relationship) return state;
       const affinity = Math.max(-1, Math.min(1, relationship.affinity + amount));
+      const npc = npcProfiles.find((item) => item.id === npcId);
+      if (npc && Math.abs(amount) >= 0.03) {
+        addNotification('relationship', {
+          actorId: npc.id,
+          actorName: npc.name,
+          actorAvatar: npc.avatar,
+          title: `${npc.name} relationship changed`,
+          body: amount > 0 ? 'Your bond is getting stronger.' : 'Your relationship has become more strained.',
+          targetId: npc.id,
+        });
+      }
       return {
         relationships: {
           ...state.relationships,
@@ -238,6 +374,18 @@ export const useFeedStore = create<FeedStore>((set, get) => ({
             sentiment: affinity < -0.5 ? 'hostile' : affinity < 0 ? 'suspicious' : affinity > 0.7 ? 'supportive' : relationship.sentiment,
             lastInteractionAt: Date.now(),
           },
+        },
+      };
+    }),
+
+  setRelationshipChemistry: (npcId, chemistry) =>
+    set((state) => {
+      const relationship = state.relationships[npcId];
+      if (!relationship) return state;
+      return {
+        relationships: {
+          ...state.relationships,
+          [npcId]: { ...relationship, chemistry, lastInteractionAt: Date.now() },
         },
       };
     }),
@@ -261,7 +409,8 @@ export const useFeedStore = create<FeedStore>((set, get) => ({
       const relationship = state.relationships[npc.id];
       if (!relationship) return { simulationTick: nextTick };
 
-      const target = state.posts.find((post) => post.authorId !== npc.id);
+      const visiblePosts = state.posts.filter((post) => post.authorId !== npc.id);
+      const target = visiblePosts.length > 0 ? visiblePosts[(nextTick - 1) % visiblePosts.length] : undefined;
       if (!target) return { simulationTick: nextTick };
       const action = decideNpcAction({
         npc,
@@ -270,9 +419,25 @@ export const useFeedStore = create<FeedStore>((set, get) => ({
         memories: state.memories[npc.id] ?? [],
         tick: nextTick,
       });
-      if (action === 'ignore') return { simulationTick: nextTick };
+      const world = getActiveWorld();
+      const chaosMultiplier = npcChaosMultiplier(world.settings.madnessScale);
+      const shouldPostInstead = world.settings.difficulty === 'Relaxed' && nextTick % 4 === 0;
+      const effectiveAction = shouldPostInstead ? 'post' : action;
+      const viewedPosts = state.posts.map((post) =>
+        post.id === target.id ? { ...post, views: post.views + 1 } : post,
+      );
+      if (target.authorId === 'player' && nextTick % 2 === 0) {
+        addNotification('like', { actorId: npc.id, actorName: npc.name, actorAvatar: npc.avatar, title: `${npc.name} liked your post`, body: target.content, targetId: target.id });
+      }
+      if (target.authorId === 'player' && nextTick % 4 === 0) {
+        addNotification('repost', { actorId: npc.id, actorName: npc.name, actorAvatar: npc.avatar, title: `${npc.name} reposted your post`, body: target.content, targetId: target.id });
+      }
+      if (target.authorId === 'player' && nextTick % 7 === 0) {
+        addNotification('follow', { actorId: npc.id, actorName: npc.name, actorAvatar: npc.avatar, title: `${npc.name} is now following you`, body: 'Your world activity caught their attention.', targetId: npc.id });
+      }
+      if (effectiveAction === 'ignore' || (chaosMultiplier < 1 && nextTick % 3 === 0)) return { simulationTick: nextTick, posts: viewedPosts };
 
-      if (action === 'reply') {
+      if (effectiveAction === 'reply') {
         const reply: Reply = {
           id: `${npc.id}-sim-${nextTick}`,
           postId: target.id,
@@ -284,10 +449,13 @@ export const useFeedStore = create<FeedStore>((set, get) => ({
           likes: 0,
           createdAt: Date.now(),
         };
+        if (isPlayerRelevantReply(target.authorId, npc.id, reply.body)) {
+          addNotification('reply', { actorId: npc.id, actorName: npc.name, actorAvatar: npc.avatar, title: `${npc.name} replied to you`, body: reply.body, targetId: target.id });
+        }
         return {
           simulationTick: nextTick,
           repliesByPost: { ...state.repliesByPost, [target.id]: [...(state.repliesByPost[target.id] ?? []), reply] },
-          posts: state.posts.map((post) => post.id === target.id ? { ...post, comments: post.comments + 1, tension: Math.min(1, post.tension + 0.02) } : post),
+          posts: viewedPosts.map((post) => post.id === target.id ? { ...post, comments: post.comments + 1, tension: Math.min(1, post.tension + 0.02) } : post),
           relationships: { ...state.relationships, [npc.id]: { ...relationship, affinity: Math.min(1, relationship.affinity + 0.01), lastInteractionAt: Date.now() } },
           memories: { ...state.memories, [npc.id]: [...(state.memories[npc.id] ?? []), { id: `${npc.id}-memory-${nextTick}`, npcId: npc.id, summary: `The player drew attention around "${target.content.slice(0, 40)}".`, emotionalWeight: target.tension, importance: Math.min(1, target.tension + 0.2), createdAt: Date.now() }] },
         };
@@ -309,9 +477,33 @@ export const useFeedStore = create<FeedStore>((set, get) => ({
         tension: Math.min(1, 0.35 + Math.max(0, relationship.affinity) * 0.4),
         affinity: relationship.affinity,
       };
-      return { simulationTick: nextTick, posts: [generatedPost, ...state.posts] };
+      if (shouldGenerateNpcStory(world.settings.universeStories, nextTick, world.settings.madnessScale)) {
+        useStoryStore.getState().addNpcStory({
+          authorId: npc.id,
+          authorName: npc.name,
+          handle: npc.handle,
+          avatar: npc.avatar,
+          verified: npc.verified,
+          thought: `A live update from ${npc.name}.`,
+          text: generateNpcText(npc, target, state.memories[npc.id]),
+        });
+      }
+      if (npc.id === 'quidditch-stats' && !world.settings.newsAccounts) return { simulationTick: nextTick, posts: viewedPosts };
+      return { simulationTick: nextTick, posts: [generatedPost, ...viewedPosts] };
     }),
 }));
+
+useFeedStore.subscribe((state) => {
+  saveFeedSnapshot({
+    posts: state.posts,
+    repliesByPost: state.repliesByPost,
+    relationships: state.relationships,
+    memories: state.memories,
+    simulationTick: state.simulationTick,
+    playerStats: state.playerStats,
+    feedMode: state.feedMode,
+  });
+});
 
 function postAffinity(posts: Post[], postId: string): number {
   return posts.find((post) => post.id === postId)?.affinity ?? 0;

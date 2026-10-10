@@ -140,9 +140,9 @@ export default function AppHub() {
 
       {/* Floating Create Button */}
       <View className="absolute bottom-10 w-full items-center pointer-events-box-none">
-        <TouchableOpacity onPress={() => router.push('/create-character')} className="bg-[#3B82F6] rounded-full px-6 py-4 flex-row items-center">
+        <TouchableOpacity onPress={() => router.push('/create-world')} className="bg-[#3B82F6] rounded-full px-6 py-4 flex-row items-center">
           <Feather name="plus" size={20} color="white" />
-          <Text className="text-white font-bold ml-2 text-base">Create my own</Text>
+          <Text className="text-white font-bold ml-2 text-base">Create my own world</Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>

@@ -1,7 +1,11 @@
 import { create } from 'zustand';
+import { loadStore, saveStore } from '../db/worldPersistence';
 import type { ChatMessage, ConversationState } from '../types/messaging';
+import type { NPCProfile } from '../types/feed';
 import { npcProfiles } from './feedStore';
 import { generateNpcText } from '../utils/npcEngine';
+import { useActivityLogStore } from './activityLogStore';
+import { addNotification } from './notificationStore';
 
 const conversationId = 'ginny';
 const initialTime = Date.now();
@@ -28,10 +32,15 @@ const initialConversation: ConversationState = {
 
 type MessageStore = {
   conversations: Record<string, ConversationState>;
+  startConversation: (profile: NPCProfile) => void;
   sendMessage: (conversationId: string, body: string) => void;
   markConversationRead: (conversationId: string) => void;
   setTyping: (conversationId: string, isTyping: boolean) => void;
 };
+
+function persistConversations(conversations: Record<string, ConversationState>): void {
+  saveStore('messages', conversations);
+}
 
 function buildResponse(body: string): string {
   const normalized = body.toLowerCase();
@@ -59,7 +68,29 @@ function buildResponse(body: string): string {
 }
 
 export const useMessageStore = create<MessageStore>((set) => ({
-  conversations: { [conversationId]: initialConversation },
+  conversations: loadStore<Record<string, ConversationState>>('messages') ?? { [conversationId]: initialConversation },
+
+  startConversation: (profile) =>
+    set((state) => {
+      if (state.conversations[profile.id]) return state;
+      const conversations = {
+          ...state.conversations,
+          [profile.id]: {
+            id: profile.id,
+            participantId: profile.id,
+            participantName: profile.name,
+            participantHandle: profile.handle,
+            avatar: profile.avatar,
+            unreadCount: 0,
+            isTyping: false,
+            relationshipDelta: '+0.0%',
+            mood: 'Waiting to see what you say',
+            messages: [],
+          },
+        };
+      persistConversations(conversations);
+      return { conversations };
+    }),
 
   sendMessage: (id, body) => {
     const trimmed = body.trim();
@@ -74,32 +105,37 @@ export const useMessageStore = create<MessageStore>((set) => ({
       createdAt,
       delivery: 'sending',
     };
+    useActivityLogStore.getState().record({
+      kind: 'chat',
+      title: `Messaged ${stateName(id)}`,
+      detail: trimmed,
+    });
 
     set((state) => {
       const conversation = state.conversations[id];
       if (!conversation) return state;
-      return {
-        conversations: {
+      const conversations = {
           ...state.conversations,
           [id]: { ...conversation, messages: [...conversation.messages, playerMessage] },
-        },
-      };
+        };
+      persistConversations(conversations);
+      return { conversations };
     });
 
     setTimeout(() => {
       set((state) => {
         const conversation = state.conversations[id];
         if (!conversation) return state;
-        return {
-          conversations: {
+        const conversations = {
             ...state.conversations,
             [id]: {
               ...conversation,
-              messages: conversation.messages.map((message) => message.id === playerMessage.id ? { ...message, delivery: 'read' } : message),
+              messages: conversation.messages.map((message) => message.id === playerMessage.id ? { ...message, delivery: 'read' as const } : message),
               isTyping: true,
             },
-          },
-        };
+          };
+        persistConversations(conversations);
+        return { conversations };
       });
     }, 500);
 
@@ -116,12 +152,13 @@ export const useMessageStore = create<MessageStore>((set) => ({
           delivery: 'read',
           rate: true,
         };
-        return {
-          conversations: {
+        addNotification('message', { actorId: id, actorName: conversation.participantName, actorAvatar: conversation.avatar, title: `New message from ${conversation.participantName}`, body: response.body, targetId: id });
+        const conversations = {
             ...state.conversations,
             [id]: { ...conversation, messages: [...conversation.messages, response], isTyping: false, unreadCount: 0 },
-          },
-        };
+          };
+        persistConversations(conversations);
+        return { conversations };
       });
     }, 1800);
   },
@@ -130,13 +167,21 @@ export const useMessageStore = create<MessageStore>((set) => ({
     set((state) => {
       const conversation = state.conversations[id];
       if (!conversation || conversation.unreadCount === 0) return state;
-      return { conversations: { ...state.conversations, [id]: { ...conversation, unreadCount: 0 } } };
+      const conversations = { ...state.conversations, [id]: { ...conversation, unreadCount: 0 } };
+      persistConversations(conversations);
+      return { conversations };
     }),
 
   setTyping: (id, isTyping) =>
     set((state) => {
       const conversation = state.conversations[id];
       if (!conversation || conversation.isTyping === isTyping) return state;
-      return { conversations: { ...state.conversations, [id]: { ...conversation, isTyping } } };
+      const conversations = { ...state.conversations, [id]: { ...conversation, isTyping } };
+      persistConversations(conversations);
+      return { conversations };
     }),
 }));
+
+function stateName(id: string): string {
+  return id === 'ginny' ? 'Ginny Weasley' : id;
+}

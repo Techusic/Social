@@ -4,18 +4,20 @@ import { Feather, Ionicons, MaterialIcons, MaterialCommunityIcons } from '@expo/
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import PostCard from '../../components/PostCard';
-import { rankPosts, useFeedStore } from '../../stores/feedStore';
+import { getVisiblePosts, useFeedStore } from '../../stores/feedStore';
 import { useStoryStore } from '../../stores/storyStore';
 
 export default function Feed() {
   const [actionsOpen, setActionsOpen] = useState(false);
   const posts = useFeedStore((state) => state.posts);
+  const feedMode = useFeedStore((state) => state.feedMode);
   const playerStats = useFeedStore((state) => state.playerStats);
   const toggleLike = useFeedStore((state) => state.toggleLike);
   const toggleRepost = useFeedStore((state) => state.toggleRepost);
   const simulateNpcTick = useFeedStore((state) => state.simulateNpcTick);
+  const setFeedMode = useFeedStore((state) => state.setFeedMode);
   const stories = useStoryStore((state) => state.stories);
-  const rankedPosts = rankPosts(posts);
+  const visiblePosts = getVisiblePosts(posts, feedMode);
 
   useEffect(() => {
     const interval = setInterval(simulateNpcTick, 30000);
@@ -73,8 +75,27 @@ export default function Feed() {
           ))}
         </ScrollView>
 
+        <View className="px-4 pt-3 pb-2">
+          <View className="flex-row rounded-full bg-[#1A1A1A] p-1 border border-gray-800">
+            <TouchableOpacity
+              accessibilityLabel="Show ranked feed"
+              onPress={() => setFeedMode('ranked')}
+              className={`flex-1 items-center justify-center rounded-full px-3 py-2 ${feedMode === 'ranked' ? 'bg-[#2A2A2A]' : ''}`}
+            >
+              <Text className={`text-sm font-semibold ${feedMode === 'ranked' ? 'text-white' : 'text-gray-400'}`}>Ranked</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              accessibilityLabel="Show chronological feed"
+              onPress={() => setFeedMode('chronological')}
+              className={`flex-1 items-center justify-center rounded-full px-3 py-2 ${feedMode === 'chronological' ? 'bg-[#2A2A2A]' : ''}`}
+            >
+              <Text className={`text-sm font-semibold ${feedMode === 'chronological' ? 'text-white' : 'text-gray-400'}`}>Latest</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
         <View className="border-t border-gray-800">
-          {rankedPosts.map((post) => (
+          {visiblePosts.map((post) => (
             <PostCard
               key={post.id}
               post={post}

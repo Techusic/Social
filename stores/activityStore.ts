@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { useActivityLogStore } from './activityLogStore';
 
 export type RoleplayActivity = {
   id: string;
@@ -18,7 +19,13 @@ type ActivityStore = {
 export const useActivityStore = create<ActivityStore>((set) => ({
   activities: [],
   addActivity: (activity) =>
-    set((state) => ({
-      activities: [...state.activities, { ...activity, id: `activity-${Date.now()}`, createdAt: Date.now() }],
-    })),
+    set((state) => {
+      const createdAt = Date.now();
+      useActivityLogStore.getState().record({
+        kind: 'activity',
+        title: 'Scheduled an activity',
+        detail: activity.title,
+      });
+      return { activities: [...state.activities, { ...activity, id: `activity-${createdAt}`, createdAt }] };
+    }),
 }));

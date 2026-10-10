@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Image, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { Feather, MaterialCommunityIcons, MaterialIcons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -85,13 +85,33 @@ const fallbackProfile = (id: string): UserProfile => ({
   relationshipDescription: 'Your relationship is still taking shape.',
 });
 
+function relationshipLabel(sentiment: string | undefined, fallback: string | undefined): string {
+  if (sentiment === 'hostile') return 'Hostile';
+  if (sentiment === 'suspicious') return 'Suspicious';
+  if (sentiment === 'amused') return 'Playful rivals';
+  if (sentiment === 'supportive') return 'Supportive';
+  return fallback ?? 'Getting acquainted';
+}
+
+function chemistryLabel(chemistry: string | undefined, sentiment: string | undefined, fallback: string | undefined): string {
+  if (chemistry === 'childhood-friends') return 'Childhood friends';
+  if (chemistry === 'friends') return 'Friends';
+  if (chemistry === 'lovers') return 'Lovers';
+  if (chemistry === 'rivals') return 'Rivals';
+  if (chemistry === 'acquaintances') return 'Acquaintances';
+  return relationshipLabel(sentiment, fallback);
+}
+
 export default function UserProfileScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const profile = profiles[id ?? ''] ?? fallbackProfile(id ?? 'character');
   const allPosts = useFeedStore((state) => state.posts);
+  const relationshipState = useFeedStore((state) => state.relationships[id ?? '']);
+  const setRelationshipChemistry = useFeedStore((state) => state.setRelationshipChemistry);
   const posts = useMemo(() => allPosts.filter((post) => post.authorId === id), [allPosts, id]);
   const toggleLike = useFeedStore((state) => state.toggleLike);
   const toggleRepost = useFeedStore((state) => state.toggleRepost);
+  const [chemistryOpen, setChemistryOpen] = useState(false);
 
   return (
     <SafeAreaView className="flex-1 bg-[#19191B]" edges={['top']}>
@@ -125,7 +145,7 @@ export default function UserProfileScreen() {
           <Text className="text-white text-2xl font-bold mt-7">{profile.followers} <Text className="text-gray-400 font-normal">Followers</Text></Text>
 
           {!profile.isPlayer && (
-            <TouchableOpacity onPress={() => router.push('/conversation')} className="bg-[#303037] rounded-full py-4 mt-8 flex-row items-center justify-center" accessibilityLabel={`Message ${profile.name}`}>
+            <TouchableOpacity onPress={() => router.push({ pathname: '/conversation', params: { id } })} className="bg-[#303037] rounded-full py-4 mt-8 flex-row items-center justify-center" accessibilityLabel={`Message ${profile.name}`}>
               <MaterialCommunityIcons name="message" size={24} color="white" />
               <Text className="text-white text-xl ml-3">Message</Text>
             </TouchableOpacity>
@@ -139,13 +159,41 @@ export default function UserProfileScreen() {
               </View>
               <View className="bg-[#242428] border border-[#3B3B42] rounded-3xl p-7">
                 <View className="flex-row justify-between">
-                  <Text className="text-white text-xl">{profile.relationship}</Text>
-                  <Text className="text-emerald-400 text-xl">+1.0%</Text>
+                  <Text className="text-white text-xl">{chemistryLabel(relationshipState?.chemistry, relationshipState?.sentiment, profile.relationship)}</Text>
+                  <Text className={`${(relationshipState?.affinity ?? 0) >= 0 ? 'text-emerald-400' : 'text-red-400'} text-xl`}>
+                    {(relationshipState?.affinity ?? 0) >= 0 ? '+' : ''}{((relationshipState?.affinity ?? 0) * 100).toFixed(1)}%
+                  </Text>
                 </View>
-                <DivergingProgress value={3.8} />
-                <Text className="text-white text-xl text-right mt-2">3.8%</Text>
+                <DivergingProgress value={(relationshipState?.affinity ?? 0) * 100} />
+                <Text className="text-white text-xl text-right mt-2">{((relationshipState?.affinity ?? 0) * 100).toFixed(1)}%</Text>
                 <Text className="text-gray-300 text-xl leading-7 mt-1">{profile.relationshipDescription}</Text>
-                <TouchableOpacity className="bg-[#303037] rounded-full py-4 mt-6 flex-row items-center justify-center"><MaterialCommunityIcons name="account-heart" size={24} color="white" /><Text className="text-white text-xl ml-3">Change chemistry</Text></TouchableOpacity>
+                <TouchableOpacity onPress={() => setChemistryOpen((open) => !open)} className="bg-[#303037] rounded-full py-4 mt-6 flex-row items-center justify-center" accessibilityLabel="Change relationship chemistry"><MaterialCommunityIcons name="account-heart" size={24} color="white" /><Text className="text-white text-xl ml-3">Change chemistry</Text></TouchableOpacity>
+                {chemistryOpen && (
+                  <View className="mt-4">
+                    <Text className="text-gray-400 text-sm mb-3">Choose how this relationship works in your world.</Text>
+                    <View className="flex-row flex-wrap gap-2">
+                      {([
+                        ['friends', 'Friends'],
+                        ['lovers', 'Lovers'],
+                        ['rivals', 'Rivals'],
+                        ['childhood-friends', 'Childhood friends'],
+                        ['acquaintances', 'Acquaintances'],
+                      ] as const).map(([value, label]) => (
+                        <TouchableOpacity
+                          key={value}
+                          onPress={() => {
+                            setRelationshipChemistry(id ?? '', value);
+                            setChemistryOpen(false);
+                          }}
+                          className={`rounded-full px-4 py-2 border ${relationshipState?.chemistry === value ? 'bg-[#263F68] border-blue-400' : 'bg-[#303037] border-[#4A4A52]'}`}
+                          accessibilityLabel={`Set chemistry to ${label}`}
+                        >
+                          <Text className={relationshipState?.chemistry === value ? 'text-blue-200 font-semibold' : 'text-gray-300'}>{label}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </View>
+                )}
               </View>
             </View>
           )}

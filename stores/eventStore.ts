@@ -1,6 +1,11 @@
 import { create } from 'zustand';
+import { loadStore, saveStore } from '../db/worldPersistence';
 import type { PlayerProgress, WorldEvent } from '../types/events';
 import { useFeedStore } from './feedStore';
+import { useActivityLogStore } from './activityLogStore';
+import { addNotification } from './notificationStore';
+import { eventConsequenceMultiplier } from '../utils/worldRules';
+import { getActiveWorld } from './worldStore';
 
 const seededEvent: WorldEvent = {
   id: 'owl-post-accusation',
@@ -41,7 +46,9 @@ type EventStore = {
   resolveEvent: (eventId: string, choiceId: string) => void;
 };
 
-export const useEventStore = create<EventStore>((set) => ({
+type PersistedEventState = Pick<EventStore, 'events' | 'progress' | 'activeEventId'>;
+
+const initialState: PersistedEventState = loadStore<PersistedEventState>('events') ?? {
   events: [seededEvent],
   activeEventId: seededEvent.id,
   progress: {
@@ -53,6 +60,10 @@ export const useEventStore = create<EventStore>((set) => ({
     xp: 12,
     completedEvents: 0,
   },
+};
+
+export const useEventStore = create<EventStore>((set) => ({
+  ...initialState,
   resolveEvent: (eventId, choiceId) =>
     set((state) => {
       const event = state.events.find((item) => item.id === eventId);
@@ -60,16 +71,26 @@ export const useEventStore = create<EventStore>((set) => ({
       if (!event || !choice || event.completed) return state;
 
       const progress = { ...state.progress, completedEvents: state.progress.completedEvents + 1, xp: state.progress.xp + 5 };
+      const multiplier = eventConsequenceMultiplier(getActiveWorld().settings.difficulty);
       choice.consequences.forEach(({ stat, amount }) => {
-        progress[stat] = Math.max(0, progress[stat] + amount);
+        progress[stat] = Math.max(0, progress[stat] + Math.round(amount * multiplier));
       });
       if (choice.relationshipDelta) {
         useFeedStore.getState().adjustRelationship(choice.relationshipDelta.npcId, choice.relationshipDelta.amount);
       }
+      useActivityLogStore.getState().record({
+        kind: 'event',
+        title: `Resolved "${event.title}"`,
+        detail: choice.label,
+      });
+      addNotification('event', { actorName: 'World event', title: `Event resolved: ${event.title}`, body: choice.label, targetId: event.id });
 
-      return {
+      const next = {
         progress,
         events: state.events.map((item) => item.id === eventId ? { ...item, completed: true } : item),
+        activeEventId: state.activeEventId,
       };
+      saveStore('events', next);
+      return next;
     }),
 }));

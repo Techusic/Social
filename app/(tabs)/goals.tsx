@@ -43,7 +43,7 @@ export default function Goals() {
           <Text className="text-gray-400 leading-5 mb-5">
             Life at Hogwarts plays out through the school feed — news accounts are posting breaking stories, students are gossiping about Quidditch drama and...
           </Text>
-          <TouchableOpacity className="bg-[#3A3A3C] py-3 rounded-xl flex-row justify-center items-center">
+          <TouchableOpacity onPress={() => router.push('/customize-world')} className="bg-[#3A3A3C] py-3 rounded-xl flex-row justify-center items-center" accessibilityLabel="Customize world">
             <Ionicons name="settings-outline" size={18} color="white" className="mr-2" />
             <Text className="text-white font-bold ml-2">Customize World</Text>
           </TouchableOpacity>
