@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { Image, KeyboardAvoidingView, Platform, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { Feather, MaterialIcons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -12,9 +12,9 @@ function formatMetric(value: number): string {
   return String(value);
 }
 
-function PostComment({ comment }: { comment: Reply }) {
+function PostComment({ comment, depth, onReply, onLike }: { comment: Reply; depth: number; onReply: (comment: Reply) => void; onLike: () => void }) {
   return (
-    <View className="px-5 py-4 border-b border-[#303035]">
+    <View className={`px-5 py-4 border-b border-[#303035] ${depth > 0 ? 'ml-8' : ''}`}>
       <View className="flex-row">
         <TouchableOpacity onPress={() => router.push({ pathname: '/user/[id]', params: { id: comment.authorId } })} accessibilityLabel={`Open ${comment.authorName} profile`}>
           <Image source={{ uri: comment.avatar }} className="w-10 h-10 rounded-full mr-3" />
@@ -26,12 +26,12 @@ function PostComment({ comment }: { comment: Reply }) {
           </TouchableOpacity>
           <Text className="text-gray-100 text-[15px] leading-5 mt-2">{comment.body}</Text>
           <View className="flex-row items-center mt-4">
-            <TouchableOpacity className="flex-row items-center" accessibilityLabel={`Like ${comment.authorName}'s reply`}>
-              <Feather name="heart" size={17} color="#8A8A91" />
+            <TouchableOpacity onPress={onLike} className="flex-row items-center" accessibilityLabel={`Like ${comment.authorName}'s reply`}>
+              <Feather name="heart" size={17} color={comment.likedByPlayer ? '#EF4444' : '#8A8A91'} />
               <Text className="text-gray-500 text-xs ml-2">{formatMetric(comment.likes)}</Text>
             </TouchableOpacity>
             <Text className="text-gray-600 text-base mx-3">|</Text>
-            <TouchableOpacity accessibilityLabel={`Reply to ${comment.authorName}`}>
+            <TouchableOpacity onPress={() => onReply(comment)} accessibilityLabel={`Reply to ${comment.authorName}`}>
               <Text className="text-gray-500 text-xs">Reply</Text>
             </TouchableOpacity>
             <View className="flex-1 items-end"><Feather name="star" size={17} color="#8A8A91" /></View>
@@ -45,11 +45,14 @@ function PostComment({ comment }: { comment: Reply }) {
 export default function PostDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const post = useFeedStore((state) => state.posts.find((item) => item.id === id));
-  const replies = useFeedStore((state) => state.repliesByPost[id ?? ''] ?? []);
+  const repliesByPost = useFeedStore((state) => state.repliesByPost);
+  const replies = useMemo(() => repliesByPost[id ?? ''] ?? [], [repliesByPost, id]);
   const toggleLike = useFeedStore((state) => state.toggleLike);
   const toggleRepost = useFeedStore((state) => state.toggleRepost);
   const addReply = useFeedStore((state) => state.addReply);
+  const toggleReplyLike = useFeedStore((state) => state.toggleReplyLike);
   const [draft, setDraft] = useState('');
+  const [replyingTo, setReplyingTo] = useState<Reply | null>(null);
   const replyInputRef = useRef<TextInput>(null);
 
   if (!post) {
@@ -70,8 +73,27 @@ export default function PostDetail() {
       authorHandle: '@raghav',
       avatar: 'https://i.pravatar.cc/150?u=raghav',
       body,
+      parentReplyId: replyingTo?.id,
     });
     setDraft('');
+    setReplyingTo(null);
+  };
+
+  const startReplyTo = (reply: Reply) => {
+    const mention = `${reply.authorHandle} `;
+    setReplyingTo(reply);
+    setDraft((current) => (current.trim() ? `${mention}${current}` : mention));
+    requestAnimationFrame(() => replyInputRef.current?.focus());
+  };
+
+  const startPostReply = () => {
+    setReplyingTo(null);
+    setDraft((current) => {
+      const mention = `${post.authorHandle} `;
+      const trimmed = current.trim();
+      return trimmed.startsWith(post.authorHandle) ? current : (trimmed ? `${mention}${current}` : mention);
+    });
+    requestAnimationFrame(() => replyInputRef.current?.focus());
   };
 
   return (
@@ -99,7 +121,7 @@ export default function PostDetail() {
             {post.media?.map((attachment) => <Image key={attachment.id} source={{ uri: attachment.uri }} className="w-full h-52 rounded-2xl mt-4" />)}
             <Text className="text-gray-500 text-xs mt-5">3:59 PM · 10/10/26 · <Text className="text-gray-200">{formatMetric(post.views)} Views</Text></Text>
             <View className="flex-row items-center mt-5 gap-2">
-              <TouchableOpacity onPress={() => replyInputRef.current?.focus()} className="bg-[#4A9AE8] rounded-full px-5 py-2.5 flex-row items-center" accessibilityLabel="Reply to post">
+              <TouchableOpacity onPress={startPostReply} className="bg-[#4A9AE8] rounded-full px-5 py-2.5 flex-row items-center" accessibilityLabel="Reply to post">
                 <Feather name="message-circle" size={17} color="white" /><Text className="text-white text-sm ml-2">Reply</Text>
               </TouchableOpacity>
               <TouchableOpacity onPress={() => toggleRepost(post.id)} className="bg-[#303035] rounded-full px-5 py-2.5 flex-row items-center" accessibilityLabel="Repost">
@@ -110,14 +132,32 @@ export default function PostDetail() {
               </TouchableOpacity>
             </View>
           </View>
-          {replies.map((reply) => <PostComment key={reply.id} comment={reply} />)}
+          {replies.map((reply) => (
+            <PostComment
+              key={reply.id}
+              comment={reply}
+              depth={reply.parentReplyId ? 1 : 0}
+              onReply={startReplyTo}
+              onLike={() => toggleReplyLike(post.id, reply.id)}
+            />
+          ))}
         </ScrollView>
 
         <View className="border-t border-[#303035] px-5 py-3 flex-row items-center bg-[#19191B]">
           <Image source={{ uri: 'https://i.pravatar.cc/150?u=raghav' }} className="w-9 h-9 rounded-full mr-3" />
-          <View className="flex-1 flex-row items-center bg-[#29292D] rounded-full px-4 min-h-[48px]">
+          <View className="flex-1">
+            {replyingTo && (
+              <View className="flex-row items-center justify-between mb-2 px-2">
+                <Text className="text-gray-500 text-xs">Replying to <Text className="text-blue-400">{replyingTo.authorHandle}</Text></Text>
+                <TouchableOpacity onPress={() => { setReplyingTo(null); setDraft(''); }} accessibilityLabel="Cancel reply">
+                  <Feather name="x" size={15} color="#8A8A91" />
+                </TouchableOpacity>
+              </View>
+            )}
+            <View className="flex-row items-center bg-[#29292D] rounded-full px-4 min-h-[48px]">
             <TextInput ref={replyInputRef} value={draft} onChangeText={setDraft} onSubmitEditing={sendReply} returnKeyType="send" placeholder="Reply..." placeholderTextColor="#8A8A91" className="flex-1 text-gray-200 text-[15px]" />
             {draft.trim().length > 0 && <TouchableOpacity onPress={sendReply} accessibilityLabel="Post reply"><Feather name="send" size={19} color="#4A9AE8" /></TouchableOpacity>}
+            </View>
           </View>
         </View>
       </KeyboardAvoidingView>

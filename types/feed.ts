@@ -30,6 +30,7 @@ export type Post = {
 export type Reply = {
   id: string;
   postId: string;
+  parentReplyId?: string;
   authorId: string;
   authorName: string;
   authorHandle: string;
@@ -37,6 +38,44 @@ export type Reply = {
   body: string;
   likes: number;
   createdAt: number;
+  likedByPlayer?: boolean;
+};
+
+export type NPCArchetype = 'rival' | 'ally' | 'authority' | 'commentator';
+
+export type NPCProfile = {
+  id: string;
+  name: string;
+  handle: string;
+  avatar: string;
+  archetype: NPCArchetype;
+  verified: boolean;
+  baselineSentiment: number;
+  postingFrequency: number;
+  traits: {
+    boldness: number;
+    humor: number;
+    patience: number;
+    suspicion: number;
+    empathy: number;
+  };
+  speakingStyle: string;
+};
+
+export type NPCMemory = {
+  id: string;
+  npcId: string;
+  summary: string;
+  emotionalWeight: number;
+  importance: number;
+  createdAt: number;
+};
+
+export type RelationshipState = {
+  npcId: string;
+  affinity: number;
+  sentiment: 'hostile' | 'suspicious' | 'neutral' | 'amused' | 'supportive';
+  lastInteractionAt: number;
 };
 
 export type PlayerEngagementStats = {

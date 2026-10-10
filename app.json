@@ -9,7 +9,6 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.techusic.social"
     },
-    "newArchEnabled": false,
     "experiments": {
       "typedRoutes": true
     },

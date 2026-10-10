@@ -2,7 +2,7 @@
 
 Social is a dark, mobile-first social simulation built with Expo and React Native. It combines a Twitter-style feed with fictional characters, relationship-aware interactions, direct messages, profiles, stories, goals, world selection, and character creation.
 
-The current implementation is a front-end prototype with local Zustand state and seeded fictional data. It is designed so the simulation systems can be expanded without replacing the navigation or UI foundations.
+The current implementation is a local-first prototype with Zustand state and seeded fictional data. It includes a ranked Twitter-style feed, posts, replies, stories, character profiles, activities, direct messages, world events, progression, local NPC simulation, search, settings, and a prototype store. It is designed so persistence, authentication, cloud AI, moderation, push notifications, and payments can be added behind adapters without replacing the navigation or UI foundations.
 
 ## Current stack
 
@@ -63,6 +63,8 @@ npx expo export --platform android
 5. Open Messages to view the conversation interface.
 6. Open Profile to edit the player profile or add a character.
 7. Create a custom character with a photo, identity, bio, description, and privacy setting.
+8. Open Profile → Activities to create planned roleplay activities.
+9. Use Search, Store, and Settings from the app hub and feed.
 
 ## Documentation
 
@@ -71,4 +73,4 @@ npx expo export --platform android
 
 ## Project status
 
-The core navigation and interaction prototype is working. Feed and reply state currently lives in memory, so it resets when the app process is restarted. Persistence, backend integration, autonomous NPC simulation, push notifications, and production authentication are still planned.
+The local prototype is functionally complete for its current scope. State resets when the app process is restarted. The NPC layer is deterministic and local-first: persona traits, memories, and relationship context drive autonomous actions and template-based text generation. Production persistence, backend integration, an optional neural on-device model, push notifications, moderation, authentication, and App Store payments remain integration work rather than missing local UI.

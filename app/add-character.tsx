@@ -18,6 +18,7 @@ const characters: Character[] = [
 export default function AddCharacter() {
   const [query, setQuery] = useState('');
   const [customTab, setCustomTab] = useState(false);
+  const [addedIds, setAddedIds] = useState<string[]>(['ginny']);
   const filteredCharacters = useMemo(
     () => characters.filter((character) => `${character.name} ${character.handle}`.toLowerCase().includes(query.toLowerCase())),
     [query],
@@ -61,17 +62,17 @@ export default function AddCharacter() {
         <ScrollView className="flex-1 px-7" showsVerticalScrollIndicator={false}>
           <View className="flex-row items-center gap-3 py-5">
             <TouchableOpacity className="bg-[#4A9AE8] rounded-full px-6 py-3 flex-row items-center"><Text className="text-white text-lg">⚡ Harry Potter</Text></TouchableOpacity>
-            <TouchableOpacity className="bg-[#29292F] rounded-full px-6 py-3"><Text className="text-gray-300 text-lg">🌍 All worlds</Text></TouchableOpacity>
+            <TouchableOpacity onPress={() => setCustomTab(false)} className="bg-[#29292F] rounded-full px-6 py-3"><Text className="text-gray-300 text-lg">🌍 All worlds</Text></TouchableOpacity>
           </View>
           {filteredCharacters.map((character) => (
-            <TouchableOpacity key={character.id} className="flex-row items-start py-5 border-b border-[#303035]" accessibilityLabel={`Add ${character.name}`}>
+            <TouchableOpacity key={character.id} onPress={() => setAddedIds((ids) => ids.includes(character.id) ? ids.filter((id) => id !== character.id) : [...ids, character.id])} className="flex-row items-start py-5 border-b border-[#303035]" accessibilityLabel={`Add ${character.name}`}>
               <Image source={{ uri: character.avatar }} className="w-20 h-20 rounded-full mr-6" />
               <View className="flex-1 pr-2">
                 <Text className="text-white text-2xl">{character.name}</Text>
                 <Text className="text-gray-500 text-xl mt-1">{character.handle}</Text>
                 <Text className="text-gray-400 text-lg leading-7 mt-2" numberOfLines={2}>{character.bio}</Text>
               </View>
-              {character.selected && <View className="w-12 h-12 rounded-full bg-[#25649A] items-center justify-center mt-5"><Ionicons name="checkmark" size={30} color="#A8D8FF" /></View>}
+              {addedIds.includes(character.id) && <View className="w-12 h-12 rounded-full bg-[#25649A] items-center justify-center mt-5"><Ionicons name="checkmark" size={30} color="#A8D8FF" /></View>}
             </TouchableOpacity>
           ))}
         </ScrollView>

@@ -2,8 +2,11 @@ import { View, Text, TouchableOpacity, Image } from 'react-native';
 import { Feather, MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
+import { useMessageStore } from '../../stores/messageStore';
 
 export default function Chat() {
+  const conversation = useMessageStore((state) => state.conversations.ginny);
+
   return (
     <SafeAreaView className="flex-1 bg-[#121214]" edges={['top']}>
       <View className="px-4 py-3 border-b border-gray-900 flex-row justify-between items-center mb-4">
@@ -24,18 +27,19 @@ export default function Chat() {
 
         {/* Chat List */}
         <TouchableOpacity onPress={() => router.push('/conversation')} className="flex-row items-center py-3" accessibilityLabel="Open conversation with Ginny Weasley">
-          <Image source={{ uri: 'https://i.pravatar.cc/150?u=ginny' }} className="w-14 h-14 rounded-full mr-4" />
+          <Image source={{ uri: conversation?.avatar ?? 'https://i.pravatar.cc/150?u=ginny' }} className="w-14 h-14 rounded-full mr-4" />
           <View className="flex-1">
             <View className="flex-row items-center mb-1">
-              <Text className="text-white font-bold text-base mr-1">Ginny Weasley</Text>
+              <Text className="text-white font-bold text-base mr-1">{conversation?.participantName ?? 'Ginny Weasley'}</Text>
               <MaterialIcons name="verified" size={14} color="#3B82F6" />
             </View>
-            <Text className="text-gray-400 text-sm" numberOfLines={2}>Whatever. Just don&apos;t be late, or I&apos;m using you for target practice with the Bludgers.</Text>
+            <Text className="text-gray-400 text-sm" numberOfLines={2}>{conversation?.messages[conversation.messages.length - 1]?.body ?? 'No messages yet.'}</Text>
           </View>
+          {!!conversation?.unreadCount && <View className="bg-blue-500 rounded-full min-w-5 h-5 items-center justify-center"><Text className="text-white text-xs">{conversation.unreadCount}</Text></View>}
         </TouchableOpacity>
       </View>
 
-      <TouchableOpacity className="absolute bottom-6 right-4 w-14 h-14 bg-blue-500 rounded-full items-center justify-center shadow-lg">
+      <TouchableOpacity onPress={() => router.push('/add-character')} className="absolute bottom-6 right-4 w-14 h-14 bg-blue-500 rounded-full items-center justify-center shadow-lg">
         <Feather name="plus" size={28} color="white" />
       </TouchableOpacity>
     </SafeAreaView>

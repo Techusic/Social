@@ -9,6 +9,7 @@ type PostCardProps = {
   onReply: () => void;
   onOpen: () => void;
   onAuthor: () => void;
+  showAuthorLink?: boolean;
 };
 
 function renderFormattedContent(content: string) {
@@ -23,23 +24,31 @@ function formatMetric(value: number): string {
   return String(value);
 }
 
-export default function PostCard({ post, onLike, onRepost, onReply, onOpen, onAuthor }: PostCardProps) {
+export default function PostCard({ post, onLike, onRepost, onReply, onOpen, onAuthor, showAuthorLink = true }: PostCardProps) {
   const avatarUrl = `https://i.pravatar.cc/150?u=${post.authorId}`;
 
   return (
     <View className="flex-row px-4 py-3 bg-[#0A0A0A] border-b border-gray-900">
-      <TouchableOpacity onPress={onOpen} accessibilityLabel={`Open ${post.authorName} profile`}>
+      <TouchableOpacity onPress={onOpen} accessibilityLabel={`Open post by ${post.authorName}`}>
         <Image source={{ uri: avatarUrl }} className="w-12 h-12 rounded-full mr-3" />
       </TouchableOpacity>
       <View className="flex-1">
         <TouchableOpacity onPress={onOpen} activeOpacity={0.85} accessibilityLabel={`Open post by ${post.authorName}`}>
           <View className="flex-row items-center justify-between mb-1">
             <View className="flex-row items-center flex-1 pr-2" style={{ gap: 4 }}>
-              <TouchableOpacity onPress={onAuthor} className="flex-row items-center flex-1" accessibilityLabel={`Open ${post.authorName} profile`}>
-                <Text className="text-white font-bold text-[15px]" numberOfLines={1}>{post.authorName}</Text>
-                {post.verified && <MaterialIcons name="verified" size={16} color="#3B82F6" />}
-                <Text className="text-gray-500 text-sm flex-1 ml-1" numberOfLines={1}>{post.authorHandle}</Text>
-              </TouchableOpacity>
+              {showAuthorLink ? (
+                <TouchableOpacity onPress={onAuthor} className="flex-row items-center flex-1" accessibilityLabel={`Open ${post.authorName} profile`}>
+                  <Text className="text-white font-bold text-[15px]" numberOfLines={1}>{post.authorName}</Text>
+                  {post.verified && <MaterialIcons name="verified" size={16} color="#3B82F6" />}
+                  <Text className="text-gray-500 text-sm flex-1 ml-1" numberOfLines={1}>{post.authorHandle}</Text>
+                </TouchableOpacity>
+              ) : (
+                <View className="flex-row items-center flex-1">
+                  <Text className="text-white font-bold text-[15px]" numberOfLines={1}>{post.authorName}</Text>
+                  {post.verified && <MaterialIcons name="verified" size={16} color="#3B82F6" />}
+                  <Text className="text-gray-500 text-sm flex-1 ml-1" numberOfLines={1}>{post.authorHandle}</Text>
+                </View>
+              )}
             </View>
             <Feather name="more-horizontal" size={16} color="#6B7280" />
           </View>

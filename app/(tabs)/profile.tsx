@@ -1,10 +1,14 @@
+import { useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, Image } from 'react-native';
 import { Feather, MaterialIcons, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useProfileStore } from '../../stores/profileStore';
+import { useActivityStore } from '../../stores/activityStore';
 
 export default function Profile() {
   const profile = useProfileStore();
+  const activities = useActivityStore((state) => state.activities);
+  const [activeTab, setActiveTab] = useState<'overview' | 'posts' | 'activities'>('overview');
 
   return (
     <View className="flex-1 bg-[#121214]">
@@ -61,7 +65,7 @@ export default function Profile() {
               <Ionicons name="settings-outline" size={18} color="white" />
               <Text className="text-white font-bold ml-2">Customize World</Text>
             </TouchableOpacity>
-            <TouchableOpacity className="bg-[#1C1C1E] py-3.5 rounded-xl flex-row justify-center items-center border border-gray-800">
+            <TouchableOpacity onPress={() => setActiveTab('activities')} className="bg-[#1C1C1E] py-3.5 rounded-xl flex-row justify-center items-center border border-gray-800">
               <MaterialCommunityIcons name="book-open-variant" size={18} color="white" />
               <Text className="text-white font-bold ml-2">Activity Log</Text>
             </TouchableOpacity>
@@ -69,17 +73,39 @@ export default function Profile() {
 
           {/* Sub Tabs */}
           <View className="flex-row border-b border-[#2A2A2A] mb-6">
-            <View className="flex-1 items-center pb-3 border-b-2 border-blue-500">
-              <Text className="text-blue-500 font-bold">Overview</Text>
-            </View>
-            <View className="flex-1 items-center pb-3">
-              <Text className="text-gray-500 font-bold">Posts</Text>
-            </View>
-            <View className="flex-1 items-center pb-3">
-              <Text className="text-gray-500 font-bold">Activities</Text>
-            </View>
+            {(['overview', 'posts', 'activities'] as const).map((tab) => (
+              <TouchableOpacity key={tab} onPress={() => setActiveTab(tab)} className={`flex-1 items-center pb-3 ${activeTab === tab ? 'border-b-2 border-blue-500' : ''}`}>
+                <Text className={`${activeTab === tab ? 'text-blue-500' : 'text-gray-500'} font-bold`}>{tab[0].toUpperCase() + tab.slice(1)}</Text>
+              </TouchableOpacity>
+            ))}
           </View>
 
+          {activeTab === 'activities' ? (
+            <View>
+              <View className="flex-row items-center justify-between mb-6">
+                <Text className="text-white font-bold text-base">Activities</Text>
+                <TouchableOpacity onPress={() => router.push('/create-activity')} accessibilityLabel="View all activities">
+                  <Text className="text-blue-400 text-sm">View all</Text>
+                </TouchableOpacity>
+              </View>
+              {activities.length === 0 ? (
+                <View className="items-center py-10">
+                  <MaterialCommunityIcons name="calendar-alert-outline" size={64} color="#71717A" />
+                  <Text className="text-gray-400 text-sm mt-5">No roleplay activities with characters planned</Text>
+                </View>
+              ) : activities.map((activity) => (
+                <View key={activity.id} className="bg-[#1C1C1E] border border-gray-800 rounded-2xl p-4 mb-3">
+                  <Text className="text-white font-semibold text-base">{activity.title}</Text>
+                  <Text className="text-gray-400 text-sm mt-2">Today (Day {activity.day}) · {activity.time}</Text>
+                </View>
+              ))}
+              <TouchableOpacity onPress={() => router.push('/create-activity')} className="bg-blue-500 py-3.5 rounded-full flex-row justify-center items-center mt-2" accessibilityLabel="Create activity">
+                <Feather name="plus" size={18} color="white" />
+                <Text className="text-white font-semibold ml-2">Create activity</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <>
           <Text className="text-white font-bold text-base mb-3">Social Media Presence</Text>
           <View className="bg-[#1C1C1E] rounded-2xl p-5 mb-6 border border-gray-800">
             <View className="flex-row justify-between items-center mb-2">
@@ -136,6 +162,8 @@ export default function Profile() {
               <Text className="text-white font-bold ml-2">Add a new character!</Text>
             </TouchableOpacity>
           </View>
+            </>
+          )}
         </View>
       </ScrollView>
     </View>

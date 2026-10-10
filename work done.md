@@ -80,13 +80,106 @@ This document is the implementation log and handoff checklist for the Social app
 - Reduced chat bubble text and message composer text.
 - Preserved mobile touch target sizes while reducing visual density.
 
+### Runtime selector and profile navigation fix
+
+- Stabilized the post-detail reply selector so missing reply collections do not create a new snapshot on every render.
+- Kept the complete reply map as the Zustand selector input and memoized the selected post thread.
+- Changed feed post cards so tapping an author does not open a profile directly.
+- Kept profile navigation available from the opened post's author and from reply authors.
+- Updated feed accessibility labels to describe post navigation accurately.
+
+### X-style mention replies
+
+- Added optional parent reply relationships to the reply model.
+- Tapping Reply on a specific comment now pre-fills the composer with that author’s `@handle`.
+- Added a visible “Replying to @handle” composer state.
+- Added cancel-reply behavior.
+- Stored the parent reply ID with submitted replies for future threaded rendering.
+
+### Messaging persistence and interaction state
+
+- Added typed chat message and conversation models.
+- Moved the Ginny conversation into a shared Zustand message store.
+- Preserved message history while navigating between the chat list and conversation.
+- Added message delivery states for sending and read messages.
+- Added read-state clearing when a conversation opens.
+- Added simulated typing indicators and delayed character responses.
+- Added lightweight context-aware responses based on message content.
+- Updated the chat list to show the latest shared message and unread badge.
+
+### Local-first completion pass
+
+- Consolidated `/character/[id]` into the universal `/user/[id]` profile implementation.
+- Added parent-aware reply indentation for nested replies.
+- Added reply likes with local player state.
+- Connected world-event relationship consequences to feed relationship state.
+- Added safe local prototype boundaries for all planned social systems.
+- Removed the obsolete Expo config field rejected by Expo Doctor.
+
+### Local NPC intelligence
+
+- Added NPC personality traits and speaking styles.
+- Added short-term NPC memory records.
+- Added a deterministic local NPC decision engine with ignore, reply, and post actions.
+- Added bounded in-character response generation based on persona, relationship, target post, and memory.
+- Connected generated NPC text to autonomous feed ticks.
+- Documented the adapter boundary for replacing templates with an on-device language model later.
+
+### Stories
+
+- Added a local story store for player and NPC stories.
+- Wired the feed story rail so Add story opens a composer and character bubbles open their own stories.
+- Added image selection, text publishing, viewed-state styling, and story reply UI.
+
+### World events and progression
+
+- Added typed world event, choice, consequence, and progression models.
+- Added a shared event store with seeded viral-rumor dilemma content.
+- Added event choices that update Humor, Aura, Clout, Reputation, Social Savvy, XP, and completed-event count.
+- Added optional relationship consequences to event choices for future relationship-store integration.
+- Added a dedicated mobile world event screen.
+- Connected the feed Activity action to the world event screen.
+- Added a resolved-event state so choices cannot be applied twice.
+
+### Activity and product-surface completion
+
+- Added local roleplay activity creation and profile activity listing.
+- Added functional story creation and character story opening.
+- Added local search across seeded posts.
+- Added local settings and store prototype screens.
+- Wired app-hub search, settings, store, create-character, and feed store controls.
+- Made add-character rows selectable.
+- Added conversation banner dismissal, conversation actions feedback, and local message rating state.
+- Corrected post replies so a direct post reply mentions the post creator, while a reply-to-reply mentions the selected reply author.
+
+### Feed ranking and NPC simulation
+
+- Added engagement velocity to ranking so rapidly changing posts can rise without allowing large static counts to dominate forever.
+- Added deterministic timestamp tie-breaking for stable feed ordering.
+- Made player reach responsive to both post tension and author affinity.
+- Added typed NPC archetypes, profiles, and relationship state.
+- Added a controlled simulation tick that produces NPC posts and NPC replies.
+- Added relationship affinity changes after simulated NPC interaction.
+- Connected the feed screen to a cleaned-up 30-second simulation interval.
+
 ## Remaining work, in order
+
+### Production integrations
+
+The local prototype surface is complete. The following work requires external services or native product decisions:
+
+- Persist Zustand state with a database and account sync.
+- Add authentication, moderation/reporting, and privacy controls.
+- Replace template NPC generation with an approved hosted or on-device model adapter.
+- Add push notifications and background scheduling.
+- Add real App Store purchases/subscriptions through a development build.
+- Add media upload/CDN storage and production analytics.
 
 ### 1. Refine the feed engine
 
+Status: Core implementation complete. Advanced balancing and persistence remain.
+
 - Separate chronological mode from ranked mode.
-- Add stable tie-breaking by creation time.
-- Add explicit reach/reaction formulas and NPC reaction thresholds.
 - Add pagination or virtualized rendering when the feed grows.
 - Add tests for ranking and interaction changes.
 
@@ -100,13 +193,17 @@ This document is the implementation log and handoff checklist for the Social app
 
 ### 3. Build the NPC simulation layer
 
-- Define persona, archetype, sentiment, relationship, frequency, and verification models.
-- Add a simulation tick that creates posts, replies, DMs, defenses, and conflicts.
+Status: Core local simulation complete. Broader autonomous behavior remains.
+
 - Add bot-to-bot reactions.
+- Add explicit reaction thresholds per NPC archetype.
+- Connect NPC simulation to DMs and world events.
 - Add narrative-day and event-aware triggers.
 - Add deterministic seeded simulation tests.
 
 ### 4. Complete messaging
+
+Status: Local prototype complete. Remote synchronization remains.
 
 - Move messages into a shared store.
 - Add conversation IDs and participant metadata.
@@ -117,6 +214,8 @@ This document is the implementation log and handoff checklist for the Social app
 
 ### 5. Add world events and progression
 
+Status: Local prototype complete. Additional event content remains.
+
 - Add randomized event cards.
 - Add event choice models.
 - Apply consequences to Humor, Aura, Clout Tokens, and relationships.
@@ -125,12 +224,15 @@ This document is the implementation log and handoff checklist for the Social app
 
 ### 6. Harden routes and data boundaries
 
-- Consolidate the legacy character route and universal user route where appropriate.
+Status: Local prototype complete.
+
 - Validate route IDs and provide explicit not-found states.
 - Replace duplicated profile data with a shared profile registry.
 - Add loading and error boundaries for route-level failures.
 
 ### 7. Production readiness
+
+Status: Local prototype complete; backend integration remains.
 
 - Add persistence and backend synchronization.
 - Add authentication and account ownership.

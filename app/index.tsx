@@ -12,14 +12,14 @@ export default function AppHub() {
         <View className="flex-row justify-between items-center px-4 pt-2 pb-6">
           <Text className="text-white font-black text-3xl tracking-tighter">Social</Text>
           <View className="flex-row items-center gap-3">
-            <TouchableOpacity className="bg-[#2A2A2A] flex-row items-center px-3 py-1.5 rounded-full">
+            <TouchableOpacity onPress={() => router.push('/')} className="bg-[#2A2A2A] flex-row items-center px-3 py-1.5 rounded-full">
               <MaterialCommunityIcons name="google-street-view" size={16} color="#9CA3AF" />
               <Feather name="chevron-down" size={16} color="#9CA3AF" className="ml-1" />
             </TouchableOpacity>
-            <TouchableOpacity className="bg-[#2A2A2A] p-2.5 rounded-full">
+            <TouchableOpacity onPress={() => router.push('/search')} className="bg-[#2A2A2A] p-2.5 rounded-full">
               <Feather name="search" size={18} color="white" />
             </TouchableOpacity>
-            <TouchableOpacity className="bg-[#2A2A2A] p-2.5 rounded-full relative">
+            <TouchableOpacity onPress={() => router.push('/settings')} className="bg-[#2A2A2A] p-2.5 rounded-full relative">
               <Ionicons name="settings-sharp" size={18} color="white" />
               {/* Notification Dot */}
               <View className="absolute top-0 right-0 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-[#2A2A2A]" />
@@ -30,7 +30,7 @@ export default function AppHub() {
         {/* Banners */}
         <View className="px-4 mb-6 gap-3">
           {/* Referral Banner */}
-          <TouchableOpacity className="bg-[#2D2416] border border-yellow-700/30 rounded-2xl p-5 flex-row justify-between items-center">
+          <TouchableOpacity onPress={() => router.push('/settings')} className="bg-[#2D2416] border border-yellow-700/30 rounded-2xl p-5 flex-row justify-between items-center">
             <View className="flex-1 pr-4">
               <Text className="text-white font-semibold text-[15px] mb-1.5 leading-5">Get 8 free actions for every friend you refer!</Text>
               <Text className="text-yellow-500 font-medium text-sm">Invite a friend</Text>
@@ -39,8 +39,8 @@ export default function AppHub() {
           </TouchableOpacity>
 
           {/* TikTok Banner */}
-          <TouchableOpacity className="bg-[#1C1A24] border border-purple-800/30 rounded-2xl p-5 flex-row justify-between items-center relative">
-            <TouchableOpacity className="absolute top-3 left-3 z-10">
+          <TouchableOpacity onPress={() => router.push('/store')} className="bg-[#1C1A24] border border-purple-800/30 rounded-2xl p-5 flex-row justify-between items-center relative">
+            <TouchableOpacity onPress={() => router.push('/')} className="absolute top-3 left-3 z-10">
               <Feather name="x" size={16} color="#6B7280" />
             </TouchableOpacity>
             <View className="flex-1 pr-4 pl-4">
@@ -55,7 +55,7 @@ export default function AppHub() {
         <View className="px-4 mb-8">
           <View className="flex-row justify-between items-center mb-4">
             <Text className="text-white font-bold text-lg">Continue playing</Text>
-            <TouchableOpacity><Text className="text-blue-400 font-medium text-sm">View all</Text></TouchableOpacity>
+            <TouchableOpacity onPress={() => router.push('/feed')}><Text className="text-blue-400 font-medium text-sm">View all</Text></TouchableOpacity>
           </View>
           
           <View className="bg-[#1C1C1E] rounded-3xl p-5 border border-gray-800">
@@ -81,11 +81,11 @@ export default function AppHub() {
                   <Text className="text-gray-400 text-xs">7.3K Followers</Text>
                 </View>
               </View>
-              <TouchableOpacity><Feather name="more-horizontal" size={20} color="#6B7280" /></TouchableOpacity>
+              <TouchableOpacity onPress={() => router.push('/settings')}><Feather name="more-horizontal" size={20} color="#6B7280" /></TouchableOpacity>
             </View>
 
             <Text className="text-gray-400 text-[14px] mb-5 leading-5">
-              Just here for the drama and the magic. I'm friends with everyone FYI.
+              Just here for the drama and the magic. I&apos;m friends with everyone FYI.
             </Text>
             
             {/* PLAY BUTTON (Navigates to Tabs) */}
@@ -102,7 +102,7 @@ export default function AppHub() {
         <View className="mb-8">
           <View className="flex-row justify-between items-center px-4 mb-4">
             <Text className="text-white font-bold text-lg">Featured Worlds</Text>
-            <TouchableOpacity><Text className="text-blue-400 font-medium text-sm">Explore more</Text></TouchableOpacity>
+            <TouchableOpacity onPress={() => router.push('/')}><Text className="text-blue-400 font-medium text-sm">Explore more</Text></TouchableOpacity>
           </View>
           
           <ScrollView horizontal showsHorizontalScrollIndicator={false} className="pl-4">
@@ -140,7 +140,7 @@ export default function AppHub() {
 
       {/* Floating Create Button */}
       <View className="absolute bottom-10 w-full items-center pointer-events-box-none">
-        <TouchableOpacity className="bg-[#3B82F6] rounded-full px-6 py-4 flex-row items-center">
+        <TouchableOpacity onPress={() => router.push('/create-character')} className="bg-[#3B82F6] rounded-full px-6 py-4 flex-row items-center">
           <Feather name="plus" size={20} color="white" />
           <Text className="text-white font-bold ml-2 text-base">Create my own</Text>
         </TouchableOpacity>
