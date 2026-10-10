@@ -1,5 +1,8 @@
 import { create } from 'zustand';
-import { loadStore, saveStore } from '../db/worldPersistence';
+import { loadStore, registerWorldHydrator, saveStore, worldStoreKey } from '../db/worldPersistence';
+import { getActiveWorld } from './worldStore';
+import { addNotification } from './notificationStore';
+import { unlockAchievement } from './achievementStore';
 
 export type Story = {
   id: string;
@@ -31,6 +34,7 @@ type StoryStore = {
   addNpcStory: (story: Omit<Story, 'id' | 'viewed'>) => void;
   markViewed: (storyId: string) => void;
   addComment: (storyId: string, body: string) => void;
+  addNpcComment: (storyId: string, profile: { id: string; name: string; avatar: string }, body: string) => void;
   toggleLike: (storyId: string) => void;
 };
 
@@ -101,12 +105,20 @@ const initialState: PersistedStoryState = loadStore<PersistedStoryState>('storie
   likedStoryIds: [],
 };
 
-function persist(state: PersistedStoryState): void {
-  saveStore('stories', state);
+function persist(state: PersistedStoryState, worldId = getActiveWorld().id): void {
+  saveStore(worldStoreKey('stories', worldId), state);
 }
 
+function loadState(worldId: string): PersistedStoryState {
+  return loadStore<PersistedStoryState>(worldStoreKey('stories', worldId))
+    ?? (worldId === 'hogwarts' ? loadStore<PersistedStoryState>('stories') : null)
+    ?? initialState;
+}
+
+const hydratedStoryState = loadState(getActiveWorld().id);
+
 export const useStoryStore = create<StoryStore>((set) => ({
-  ...initialState,
+  ...hydratedStoryState,
   addStory: (story) =>
     set((state) => {
       const next = { stories: [{ ...story, id: `story-${Date.now()}`, viewed: false }, ...state.stories], commentsByStory: state.commentsByStory, likedStoryIds: state.likedStoryIds };
@@ -150,6 +162,38 @@ export const useStoryStore = create<StoryStore>((set) => ({
       return next;
     });
   },
+  addNpcComment: (storyId, profile, body) => {
+    const trimmed = body.trim();
+    if (!trimmed) return;
+    set((state) => {
+      const next = {
+        stories: state.stories,
+        likedStoryIds: state.likedStoryIds,
+        commentsByStory: {
+          ...state.commentsByStory,
+          [storyId]: [...(state.commentsByStory[storyId] ?? []), {
+            id: `npc-comment-${Date.now()}`,
+            storyId,
+            authorName: profile.name,
+            avatar: profile.avatar,
+            body: trimmed,
+            createdAt: Date.now(),
+          }],
+        },
+      };
+      persist(next);
+      return next;
+    });
+    addNotification('story-reply', {
+      actorId: profile.id,
+      actorName: profile.name,
+      actorAvatar: profile.avatar,
+      title: `${profile.name} replied to a story`,
+      body: trimmed,
+      targetId: storyId,
+    });
+    unlockAchievement('first-story-reply', profile.id);
+  },
   toggleLike: (storyId) =>
     set((state) => {
       const next = {
@@ -163,3 +207,9 @@ export const useStoryStore = create<StoryStore>((set) => ({
       return next;
     }),
 }));
+
+registerWorldHydrator((worldId) => {
+  const state = loadState(worldId);
+  useStoryStore.setState(state);
+  persist(state, worldId);
+});

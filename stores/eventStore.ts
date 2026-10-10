@@ -1,11 +1,11 @@
 import { create } from 'zustand';
-import { loadStore, saveStore } from '../db/worldPersistence';
+import { getActiveWorld } from './worldStore';
+import { loadStore, registerWorldHydrator, saveStore, worldStoreKey } from '../db/worldPersistence';
 import type { PlayerProgress, WorldEvent } from '../types/events';
 import { useFeedStore } from './feedStore';
 import { useActivityLogStore } from './activityLogStore';
 import { addNotification } from './notificationStore';
 import { eventConsequenceMultiplier } from '../utils/worldRules';
-import { getActiveWorld } from './worldStore';
 
 const seededEvent: WorldEvent = {
   id: 'owl-post-accusation',
@@ -48,7 +48,7 @@ type EventStore = {
 
 type PersistedEventState = Pick<EventStore, 'events' | 'progress' | 'activeEventId'>;
 
-const initialState: PersistedEventState = loadStore<PersistedEventState>('events') ?? {
+const defaultState: PersistedEventState = {
   events: [seededEvent],
   activeEventId: seededEvent.id,
   progress: {
@@ -61,6 +61,12 @@ const initialState: PersistedEventState = loadStore<PersistedEventState>('events
     completedEvents: 0,
   },
 };
+function loadState(worldId: string): PersistedEventState {
+  return loadStore<PersistedEventState>(worldStoreKey('events', worldId))
+    ?? (worldId === 'hogwarts' ? loadStore<PersistedEventState>('events') : null)
+    ?? defaultState;
+}
+const initialState = loadState(getActiveWorld().id);
 
 export const useEventStore = create<EventStore>((set) => ({
   ...initialState,
@@ -90,7 +96,9 @@ export const useEventStore = create<EventStore>((set) => ({
         events: state.events.map((item) => item.id === eventId ? { ...item, completed: true } : item),
         activeEventId: state.activeEventId,
       };
-      saveStore('events', next);
+      saveStore(worldStoreKey('events', getActiveWorld().id), next);
       return next;
     }),
 }));
+
+registerWorldHydrator((worldId) => useEventStore.setState(loadState(worldId)));

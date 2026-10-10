@@ -1,4 +1,4 @@
-export type NotificationType = 'reply' | 'mention' | 'like' | 'repost' | 'follow' | 'story-reply' | 'message' | 'relationship' | 'event';
+export type NotificationType = 'reply' | 'mention' | 'like' | 'repost' | 'follow' | 'story-reply' | 'message' | 'relationship' | 'event' | 'achievement';
 
 export type Notification = {
   id: string;
@@ -12,4 +12,3 @@ export type Notification = {
   createdAt: number;
   read: boolean;
 };
-

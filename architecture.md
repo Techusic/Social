@@ -101,14 +101,46 @@ Other stores currently use the same adapter with separate keys. Feed persistence
 | `eventStore` | `events` | Event completion and player progression |
 | `activityLogStore` | `activity-log` | Recent world activity |
 | `notificationStore` | `notifications` | Typed notifications and read state |
+| `achievementStore` | `achievements` | Unlocked achievements and earned XP |
 
 Each store hydrates synchronously when its module is loaded and writes its updated state after mutations. The persistence boundary is intentionally local-first; account sync and conflict resolution are future backend responsibilities.
 
 ### Notifications
 
-`stores/notificationStore.ts` owns typed player-facing notifications. Supported types include replies, mentions, likes, reposts, follows, story replies, messages, relationship changes, and event outcomes.
+`stores/notificationStore.ts` owns typed player-facing notifications. Supported types include replies, mentions, likes, reposts, follows, story replies, messages, relationship changes, event outcomes, and achievement unlocks.
 
 Notifications are persisted independently from the feed so the unread badge survives navigation and app restarts. The tab layout derives its badge from unread records, and the notifications screen marks records read when opened.
+
+### World switching and character conversation
+
+World-scoped keys use the format `world:<worldId>:<store>`. The world store notifies registered hydrators when `activeWorldId` changes. Each persisted store reloads its namespace synchronously, while the feed uses its typed snapshot adapter.
+
+The NPC simulation is a shared conversation boundary rather than a feed-only generator. A tick may:
+
+- Reply to a player or NPC post.
+- Address the player with `@raghav`.
+- Create a player-facing like, repost, follow, or relationship notification.
+- Send an unsolicited direct message through `messageStore`.
+- Comment on a player story through `storyStore`.
+
+This keeps public posts, stories, direct messages, notifications, and relationship state connected to the same world tick.
+
+### Achievements
+
+`stores/achievementStore.ts` evaluates reaction milestones at the point where NPC behavior reaches the player:
+
+- Public reply and `@raghav` mention
+- Like, repost, or follow
+- Unsolicited direct message
+- Story reply
+- Meaningful relationship change
+- Five unlocked reaction milestones
+
+Achievement definitions and XP rewards are typed in `types/achievements.ts`. Unlocks are persisted under the active world namespace, added to the Goals screen, recorded in the activity log, and surfaced as notifications.
+
+### Goals and progression
+
+`app/(tabs)/goals.tsx` is a read-only projection of persisted event and achievement state. `utils/progression.ts` converts combined XP into a level, current-level XP, and normalized progress toward the next level. The screen renders every achievement definition so locked milestones remain visible, while unlocked achievements show their earned XP. It also summarizes completed world events and the next achievement milestone without exposing non-functional reward actions.
 
 ### Profile store
 
@@ -217,9 +249,9 @@ NPC profiles currently contain:
 - Baseline sentiment.
 - Relationship affinity and sentiment.
 
-`simulateNpcTick()` is intentionally deterministic for the prototype. It rotates through known NPCs, targets an existing post, and alternates between creating a new NPC post and adding an NPC reply. The feed screen runs one tick every 30 seconds while it is mounted and cleans up the timer when it unmounts.
+`simulateNpcTick()` is intentionally deterministic for the local prototype. It rotates through known NPCs, targets an existing post, and chooses among ignoring, replying, or publishing based on persona traits, relationship pressure, memories, target tension, simulation tick, and active-world settings. Reactions can extend across posts, stories, direct messages, follows, likes, reposts, and relationship changes. The feed screen runs one tick every 30 seconds while it is mounted and cleans up the timer when it unmounts.
 
-The tick is a local simulation boundary. Future message and event systems should subscribe to the same boundary rather than creating separate timers in each screen.
+The tick is a local simulation boundary. Message and story stores subscribe through explicit reaction methods, while the achievement store evaluates player-facing milestones at the point each reaction is applied.
 
 ## UI composition
 

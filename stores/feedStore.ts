@@ -1,12 +1,15 @@
 import { create } from 'zustand';
 
 import { loadFeedSnapshot, saveFeedSnapshot } from '../db/feedPersistence';
+import { registerWorldHydrator } from '../db/worldPersistence';
 import type { FeedMode } from '../db/feedPersistence';
 import type { NPCMemory, NPCProfile, PlayerEngagementStats, Post, RelationshipState, Reply } from '../types/feed';
 import { getVisiblePosts, rankPosts, sortPostsChronologically } from '../utils/feedRanking';
 import { decideNpcAction, generateNpcText } from '../utils/npcEngine';
 import { useActivityLogStore } from './activityLogStore';
 import { useStoryStore } from './storyStore';
+import { useMessageStore } from './messageStore';
+import { unlockAchievement } from './achievementStore';
 import { addNotification } from './notificationStore';
 import { getActiveWorld } from './worldStore';
 import { isPlayerRelevantReply, npcChaosMultiplier, shouldGenerateNpcStory } from '../utils/worldRules';
@@ -131,7 +134,8 @@ const initialMemories: Record<string, NPCMemory[]> = {
   'quidditch-stats': [],
 };
 
-const persistedFeedState = loadFeedSnapshot();
+const activeWorldId = getActiveWorld().id;
+const persistedFeedState = loadFeedSnapshot(activeWorldId);
 const hydratedFeedState = persistedFeedState ?? {
   posts: initialPosts,
   repliesByPost: initialReplies,
@@ -148,7 +152,7 @@ const hydratedFeedState = persistedFeedState ?? {
 };
 
 if (!persistedFeedState) {
-  saveFeedSnapshot(hydratedFeedState);
+  saveFeedSnapshot(hydratedFeedState, activeWorldId);
 }
 
 export { getVisiblePosts, rankPosts, sortPostsChronologically } from '../utils/feedRanking';
@@ -364,6 +368,7 @@ export const useFeedStore = create<FeedStore>((set, get) => ({
           body: amount > 0 ? 'Your bond is getting stronger.' : 'Your relationship has become more strained.',
           targetId: npc.id,
         });
+        unlockAchievement('relationship-spark', npcId);
       }
       return {
         relationships: {
@@ -423,17 +428,25 @@ export const useFeedStore = create<FeedStore>((set, get) => ({
       const chaosMultiplier = npcChaosMultiplier(world.settings.madnessScale);
       const shouldPostInstead = world.settings.difficulty === 'Relaxed' && nextTick % 4 === 0;
       const effectiveAction = shouldPostInstead ? 'post' : action;
+      const generatedText = generateNpcText(npc, target, state.memories[npc.id]);
       const viewedPosts = state.posts.map((post) =>
         post.id === target.id ? { ...post, views: post.views + 1 } : post,
       );
       if (target.authorId === 'player' && nextTick % 2 === 0) {
         addNotification('like', { actorId: npc.id, actorName: npc.name, actorAvatar: npc.avatar, title: `${npc.name} liked your post`, body: target.content, targetId: target.id });
+        unlockAchievement('first-like', npc.id);
       }
       if (target.authorId === 'player' && nextTick % 4 === 0) {
         addNotification('repost', { actorId: npc.id, actorName: npc.name, actorAvatar: npc.avatar, title: `${npc.name} reposted your post`, body: target.content, targetId: target.id });
+        unlockAchievement('first-repost', npc.id);
       }
       if (target.authorId === 'player' && nextTick % 7 === 0) {
         addNotification('follow', { actorId: npc.id, actorName: npc.name, actorAvatar: npc.avatar, title: `${npc.name} is now following you`, body: 'Your world activity caught their attention.', targetId: npc.id });
+        unlockAchievement('first-follow', npc.id);
+      }
+      if (target.authorId === 'player' && nextTick % 3 === 0) {
+        useMessageStore.getState().receiveMessage(npc, generatedText);
+        unlockAchievement('first-message', npc.id);
       }
       if (effectiveAction === 'ignore' || (chaosMultiplier < 1 && nextTick % 3 === 0)) return { simulationTick: nextTick, posts: viewedPosts };
 
@@ -445,12 +458,13 @@ export const useFeedStore = create<FeedStore>((set, get) => ({
           authorName: npc.name,
           authorHandle: npc.handle,
           avatar: npc.avatar,
-          body: generateNpcText(npc, target, state.memories[npc.id]),
+          body: nextTick % 2 === 0 && target.authorId === 'player' ? `@raghav ${generatedText}` : generatedText,
           likes: 0,
           createdAt: Date.now(),
         };
         if (isPlayerRelevantReply(target.authorId, npc.id, reply.body)) {
           addNotification('reply', { actorId: npc.id, actorName: npc.name, actorAvatar: npc.avatar, title: `${npc.name} replied to you`, body: reply.body, targetId: target.id });
+          unlockAchievement(reply.body.includes('@raghav') ? 'first-mention' : 'first-reply', npc.id);
         }
         return {
           simulationTick: nextTick,
@@ -468,7 +482,7 @@ export const useFeedStore = create<FeedStore>((set, get) => ({
         authorHandle: npc.handle,
         authorKind: 'npc',
         verified: npc.verified,
-        content: generateNpcText(npc, target, state.memories[npc.id]),
+        content: nextTick % 2 === 0 && target.authorId === 'player' ? `@raghav ${generatedText}` : generatedText,
         createdAt: Date.now(),
         comments: 0,
         reposts: 0,
@@ -485,8 +499,15 @@ export const useFeedStore = create<FeedStore>((set, get) => ({
           avatar: npc.avatar,
           verified: npc.verified,
           thought: `A live update from ${npc.name}.`,
-          text: generateNpcText(npc, target, state.memories[npc.id]),
+          text: generatedText,
         });
+      }
+      if (world.settings.universeStories && nextTick % 4 === 0) {
+        const playerStory = useStoryStore.getState().stories.find((story) => story.authorId === 'player');
+        if (playerStory) {
+          useStoryStore.getState().addNpcComment(playerStory.id, npc, `@raghav ${generatedText}`);
+          unlockAchievement('first-story-reply', npc.id);
+        }
       }
       if (npc.id === 'quidditch-stats' && !world.settings.newsAccounts) return { simulationTick: nextTick, posts: viewedPosts };
       return { simulationTick: nextTick, posts: [generatedPost, ...viewedPosts] };
@@ -494,6 +515,7 @@ export const useFeedStore = create<FeedStore>((set, get) => ({
 }));
 
 useFeedStore.subscribe((state) => {
+  const worldId = getActiveWorld().id;
   saveFeedSnapshot({
     posts: state.posts,
     repliesByPost: state.repliesByPost,
@@ -502,7 +524,21 @@ useFeedStore.subscribe((state) => {
     simulationTick: state.simulationTick,
     playerStats: state.playerStats,
     feedMode: state.feedMode,
-  });
+  }, worldId);
+});
+
+registerWorldHydrator((worldId) => {
+  const snapshot = loadFeedSnapshot(worldId) ?? {
+    posts: initialPosts,
+    repliesByPost: initialReplies,
+    relationships: initialRelationships,
+    memories: initialMemories,
+    simulationTick: 0,
+    playerStats: { likesGiven: 0, repliesWritten: 0, repostsMade: 0, reach: 0 },
+    feedMode: 'ranked' as FeedMode,
+  };
+  useFeedStore.setState(snapshot);
+  saveFeedSnapshot(snapshot, worldId);
 });
 
 function postAffinity(posts: Post[], postId: string): number {

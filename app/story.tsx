@@ -32,10 +32,12 @@ export default function Story() {
   const story = stories[storyIndex];
   const comments = story ? commentsByStory[story.id] ?? [] : [];
   const liked = story ? likedStoryIds.includes(story.id) : false;
+  const storyId = story?.id;
+  const storyViewed = story?.viewed;
 
   useEffect(() => {
-    if (mode === 'create' || !story) return;
-    markViewed(story.id);
+    if (mode === 'create' || !storyId) return;
+    if (!storyViewed) markViewed(storyId);
     const startedAt = Date.now();
     const timer = setInterval(() => {
       const nextProgress = Math.min(1, (Date.now() - startedAt) / STORY_DURATION);
@@ -47,7 +49,7 @@ export default function Story() {
       }
     }, 80);
     return () => clearInterval(timer);
-  }, [markViewed, mode, story, storyIndex, stories.length]);
+  }, [markViewed, mode, storyId, storyViewed, storyIndex, stories.length]);
 
   const chooseImage = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();

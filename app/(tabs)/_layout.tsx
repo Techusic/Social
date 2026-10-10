@@ -4,7 +4,8 @@ import { View } from 'react-native';
 import { useNotificationStore } from '../../stores/notificationStore';
 
 export default function TabLayout() {
-  const unreadCount = useNotificationStore((state) => state.notifications.filter((item) => !item.read).length);
+  const notifications = useNotificationStore((state) => state.notifications);
+  const unreadCount = notifications.reduce((count, item) => count + (item.read ? 0 : 1), 0);
   return (
     <Tabs
       screenOptions={{

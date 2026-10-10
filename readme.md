@@ -73,6 +73,7 @@ npm test
 
 - [Work completed and remaining work](./work%20done.md)
 - [Architecture](./architecture.md)
+- [Bug audit](./BUGS.md)
 
 ## Local persistence
 
@@ -87,6 +88,7 @@ Persisted domains include:
 - Events and player progression through [stores/eventStore.ts](./stores/eventStore.ts)
 - Activity history through [stores/activityLogStore.ts](./stores/activityLogStore.ts)
 - Typed unread notifications through [stores/notificationStore.ts](./stores/notificationStore.ts)
+- Achievement unlocks and earned XP through [stores/achievementStore.ts](./stores/achievementStore.ts)
 
 Persistence is device-local and is not account synchronization. Clearing app data or uninstalling the app removes this local database.
 
@@ -98,9 +100,17 @@ Persistence is device-local and is not account synchronization. Clearing app dat
 - Madness scale changes NPC activity and story frequency.
 - Universe Stories controls NPC story creation.
 - News Accounts controls news-account publishing.
-- Player-facing NPC actions create persisted notifications.
+- Player-facing NPC actions create persisted notifications and can unlock achievements.
 
-The feed runs a simulation tick every 30 seconds while the feed screen is mounted.
+The feed runs a simulation tick every 30 seconds while the feed screen is mounted. Each tick evaluates the NPC's persona, relationship, memories, target post, and active-world settings before choosing an action.
+
+The app hub world picker switches the active world. Switching worlds hydrates each persisted store from that world's namespace, so feed content, stories, messages, events, logs, notifications, and simulation progress do not mix between worlds.
+
+NPCs can interact with the player and with other characters. Depending on relationships, target posts, and world settings, they can publish posts, reply with mentions, like or repost player posts, follow the player, send unsolicited direct messages, and reply to player stories.
+
+NPC reactions can unlock persisted achievements such as The Conversation Starts, Name in the Feed, Quiet Approval, Passed Along, People Are Watching, An Owl Arrives, Story Reaction, Something Changed, and Social Gravity. Each achievement grants XP, records an activity-log entry, and creates an achievement notification. Unlocks are isolated per world.
+
+The Goals screen combines event XP and achievement XP into a live level, displays progress toward the next level, lists locked and unlocked achievements, and shows the next available milestone. Progression calculations are shared through [utils/progression.ts](./utils/progression.ts).
 
 ## Project status
 

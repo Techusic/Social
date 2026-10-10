@@ -1,5 +1,6 @@
 import { create } from 'zustand';
-import { loadStore, saveStore } from '../db/worldPersistence';
+import { loadStore, registerWorldHydrator, saveStore, worldStoreKey } from '../db/worldPersistence';
+import { getActiveWorld } from './worldStore';
 
 export type ActivityLogKind = 'world' | 'social' | 'chat' | 'event' | 'activity';
 
@@ -14,7 +15,6 @@ export type ActivityLogEntry = {
 type ActivityLogStore = {
   entries: ActivityLogEntry[];
   record: (entry: Omit<ActivityLogEntry, 'id' | 'createdAt'>) => void;
-  clear: () => void;
 };
 
 const defaultEntries: ActivityLogEntry[] = [
@@ -27,18 +27,20 @@ const defaultEntries: ActivityLogEntry[] = [
     },
 ];
 
-const initialEntries = loadStore<ActivityLogEntry[]>('activity-log') ?? defaultEntries;
+function loadEntries(worldId: string): ActivityLogEntry[] {
+  return loadStore<ActivityLogEntry[]>(worldStoreKey('activity-log', worldId))
+    ?? (worldId === 'hogwarts' ? loadStore<ActivityLogEntry[]>('activity-log') : null)
+    ?? defaultEntries;
+}
 
 export const useActivityLogStore = create<ActivityLogStore>((set) => ({
-  entries: initialEntries,
+  entries: loadEntries(getActiveWorld().id),
   record: (entry) =>
     set((state) => {
-      const entries = [{ ...entry, id: `log-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, createdAt: Date.now() }, ...state.entries].slice(0, 200);
-      saveStore('activity-log', entries);
+      const entries = [{ ...entry, id: `log-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, createdAt: Date.now() }, ...state.entries];
+      saveStore(worldStoreKey('activity-log', getActiveWorld().id), entries);
       return { entries };
     }),
-  clear: () => {
-    saveStore('activity-log', []);
-    set({ entries: [] });
-  },
 }));
+
+registerWorldHydrator((worldId) => useActivityLogStore.setState({ entries: loadEntries(worldId) }));

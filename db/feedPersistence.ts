@@ -29,10 +29,11 @@ function ensureTable(): void {
   `);
 }
 
-export function loadFeedSnapshot(): FeedSnapshot | null {
+export function loadFeedSnapshot(worldId = 'hogwarts'): FeedSnapshot | null {
   ensureTable();
 
-  const row = db.getFirstSync<{ value: string }>(`SELECT value FROM ${TABLE_NAME} WHERE key = ?;`, [STORAGE_KEY]);
+  const key = worldId === 'hogwarts' ? STORAGE_KEY : `world:${worldId}:${STORAGE_KEY}`;
+  const row = db.getFirstSync<{ value: string }>(`SELECT value FROM ${TABLE_NAME} WHERE key = ?;`, [key]);
   if (!row?.value) {
     return null;
   }
@@ -44,9 +45,10 @@ export function loadFeedSnapshot(): FeedSnapshot | null {
   }
 }
 
-export function saveFeedSnapshot(snapshot: FeedSnapshot): void {
+export function saveFeedSnapshot(snapshot: FeedSnapshot, worldId = 'hogwarts'): void {
   ensureTable();
   const serialized = JSON.stringify(snapshot);
 
-  db.runSync(`INSERT OR REPLACE INTO ${TABLE_NAME} (key, value) VALUES (?, ?);`, [STORAGE_KEY, serialized]);
+  const key = worldId === 'hogwarts' ? STORAGE_KEY : `world:${worldId}:${STORAGE_KEY}`;
+  db.runSync(`INSERT OR REPLACE INTO ${TABLE_NAME} (key, value) VALUES (?, ?);`, [key, serialized]);
 }

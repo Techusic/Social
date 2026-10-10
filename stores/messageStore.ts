@@ -1,5 +1,6 @@
 import { create } from 'zustand';
-import { loadStore, saveStore } from '../db/worldPersistence';
+import { getActiveWorld } from './worldStore';
+import { loadStore, registerWorldHydrator, saveStore, worldStoreKey } from '../db/worldPersistence';
 import type { ChatMessage, ConversationState } from '../types/messaging';
 import type { NPCProfile } from '../types/feed';
 import { npcProfiles } from './feedStore';
@@ -34,12 +35,19 @@ type MessageStore = {
   conversations: Record<string, ConversationState>;
   startConversation: (profile: NPCProfile) => void;
   sendMessage: (conversationId: string, body: string) => void;
+  receiveMessage: (profile: NPCProfile, body: string) => void;
   markConversationRead: (conversationId: string) => void;
   setTyping: (conversationId: string, isTyping: boolean) => void;
 };
 
-function persistConversations(conversations: Record<string, ConversationState>): void {
-  saveStore('messages', conversations);
+function loadConversations(worldId: string): Record<string, ConversationState> {
+  return loadStore<Record<string, ConversationState>>(worldStoreKey('messages', worldId))
+    ?? (worldId === 'hogwarts' ? loadStore<Record<string, ConversationState>>('messages') : null)
+    ?? { [conversationId]: initialConversation };
+}
+
+function persistConversations(conversations: Record<string, ConversationState>, worldId = getActiveWorld().id): void {
+  saveStore(worldStoreKey('messages', worldId), conversations);
 }
 
 function buildResponse(body: string): string {
@@ -68,7 +76,7 @@ function buildResponse(body: string): string {
 }
 
 export const useMessageStore = create<MessageStore>((set) => ({
-  conversations: loadStore<Record<string, ConversationState>>('messages') ?? { [conversationId]: initialConversation },
+  conversations: loadConversations(getActiveWorld().id),
 
   startConversation: (profile) =>
     set((state) => {
@@ -163,6 +171,44 @@ export const useMessageStore = create<MessageStore>((set) => ({
     }, 1800);
   },
 
+  receiveMessage: (profile, body) => {
+    const trimmed = body.trim();
+    if (!trimmed) return;
+    const createdAt = Date.now();
+    set((state) => {
+      const conversation = state.conversations[profile.id] ?? {
+        id: profile.id,
+        participantId: profile.id,
+        participantName: profile.name,
+        participantHandle: profile.handle,
+        avatar: profile.avatar,
+        unreadCount: 0,
+        isTyping: false,
+        relationshipDelta: '+0.0%',
+        mood: 'Waiting to see what you say',
+        messages: [],
+      };
+      const conversations = {
+        ...state.conversations,
+        [profile.id]: {
+          ...conversation,
+          messages: [...conversation.messages, { id: `npc-${profile.id}-${createdAt}`, conversationId: profile.id, body: trimmed, side: 'character' as const, createdAt, delivery: 'read' as const }],
+          unreadCount: conversation.unreadCount + 1,
+        },
+      };
+      persistConversations(conversations);
+      return { conversations };
+    });
+    addNotification('message', {
+      actorId: profile.id,
+      actorName: profile.name,
+      actorAvatar: profile.avatar,
+      title: `New message from ${profile.name}`,
+      body: trimmed,
+      targetId: profile.id,
+    });
+  },
+
   markConversationRead: (id) =>
     set((state) => {
       const conversation = state.conversations[id];
@@ -181,6 +227,8 @@ export const useMessageStore = create<MessageStore>((set) => ({
       return { conversations };
     }),
 }));
+
+registerWorldHydrator((worldId) => useMessageStore.setState({ conversations: loadConversations(worldId) }));
 
 function stateName(id: string): string {
   return id === 'ginny' ? 'Ginny Weasley' : id;

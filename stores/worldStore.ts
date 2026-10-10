@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { loadStore, saveStore } from '../db/worldPersistence';
+import { hydrateWorldStores, loadStore, saveStore } from '../db/worldPersistence';
 import type { World, WorldSettings } from '../types/world';
 
 type WorldStore = {
@@ -72,6 +72,7 @@ export const useWorldStore = create<WorldStore>((set, get) => ({
       persist(next);
       return next;
     });
+    hydrateWorldStores(worldId);
   },
 }));
 
@@ -80,3 +81,6 @@ export function getActiveWorld(): World {
   return state.worlds.find((world) => world.id === state.activeWorldId) ?? defaultWorld;
 }
 
+export function getActiveWorldId(): string {
+  return useWorldStore.getState().activeWorldId;
+}

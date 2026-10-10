@@ -59,6 +59,18 @@ This document is the implementation log and handoff checklist for the Social app
 - News Accounts controls news-account publishing.
 - NPC likes, reposts, follows, replies, and relationship changes can generate notifications.
 - Added focused tests for world rules and player-relevant replies.
+
+### Reaction achievements
+
+- Added typed achievement definitions and XP rewards.
+- Awarded achievements from NPC replies, mentions, likes, reposts, follows, messages, story replies, and relationship changes.
+- Added the Social Gravity milestone after multiple reaction achievements.
+- Persisted unlocks per world.
+- Added achievement notifications and activity-log records.
+- Displayed unlocked achievements and earned XP on the Goals screen.
+- Rebuilt the Goals screen around live event and achievement XP.
+- Added shared level/progression calculations and locked achievement states.
+- Replaced hardcoded milestone text and non-functional reward controls with live progression status.
 - Updated player reply statistics and reach.
 - Added a reply composer with keyboard submit and send button.
 - Made the main Reply action focus the composer.
@@ -220,7 +232,6 @@ Status: Core implementation complete. Advanced balancing and persistence remain.
 
 Status: Core local simulation and settings integration complete. Broader autonomous behavior remains.
 
-- Connect NPC simulation to DMs and world events.
 - Add narrative-day and event-aware triggers.
 - Add background simulation scheduling independent of the feed screen.
 
@@ -236,10 +247,7 @@ Status: Local prototype complete. Remote synchronization remains.
 Status: Local prototype and persistence complete. Additional event content remains.
 
 - Add randomized event cards.
-- Add event choice models.
-- Apply consequences to Humor, Aura, Clout Tokens, and relationships.
 - Add milestone thresholds and completed event chains.
-- Add a visible goals/progression state.
 
 ### 6. Harden routes and data boundaries
 
@@ -253,19 +261,24 @@ Status: Local prototype complete.
 
 Status: Local prototype complete; backend integration remains.
 
-- Add persistence and backend synchronization.
+- Add backend synchronization.
 - Add authentication and account ownership.
 - Add media upload storage and moderation.
 - Add accessibility labels and screen-reader verification.
-- Add tests for core stores and critical navigation journeys.
+- Add integration tests for core stores and critical navigation journeys.
 - Run Expo Doctor and resolve remaining platform-specific warnings.
 - Test Android, iOS, and web behavior independently.
 
+### Documentation and bug audit
+
+- Added `BUGS.md` with confirmed fixes and remaining technical debt.
+- Documented the Goals progression model, achievement persistence, and current simulation limitations.
+
 ## Current limitations
 
-- Store state is in memory and resets on process restart.
+- Store state is persisted locally but is not synchronized to an account or backend.
 - Seeded content uses placeholder remote avatar and cover-image URLs.
 - Chat messages are local and not synchronized.
-- NPC behavior is mostly static.
-- Reply likes and nested threads are not implemented yet.
+- NPC simulation is deterministic and only runs while the feed screen is mounted.
+- Reply likes and nested threads remain local-only.
 - There is no authentication, backend, moderation, or push-notification service.

@@ -22,8 +22,12 @@ function getRepliesForPost(replies: ReturnType<typeof useFeedStore.getState>['re
 export default function Notifications() {
   const posts = useFeedStore((state) => state.posts);
   const repliesByPost = useFeedStore((state) => state.repliesByPost);
-  const otherNotifications = useNotificationStore((state) => state.notifications.filter((item) => item.type !== 'reply' && item.type !== 'mention'));
+  const allNotifications = useNotificationStore((state) => state.notifications);
   const markAllRead = useNotificationStore((state) => state.markAllRead);
+  const otherNotifications = useMemo(
+    () => allNotifications.filter((item) => item.type !== 'reply' && item.type !== 'mention'),
+    [allNotifications],
+  );
   useEffect(() => {
     markAllRead();
   }, [markAllRead]);

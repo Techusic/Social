@@ -22,7 +22,6 @@ function formatTime(timestamp: number): string {
 
 export default function ActivityLog() {
   const entries = useActivityLogStore((state) => state.entries);
-  const clear = useActivityLogStore((state) => state.clear);
   const sections = useMemo(() => {
     const grouped = new Map<string, typeof entries>();
     entries.forEach((entry) => {
@@ -36,14 +35,12 @@ export default function ActivityLog() {
 
   return (
     <SafeAreaView className="flex-1 bg-[#121214]" edges={['top', 'bottom']}>
-      <View className="flex-row items-center justify-between px-10 pt-8 pb-6 border-b border-[#3B3B3F]">
+      <View className="flex-row items-center px-10 pt-8 pb-6 border-b border-[#3B3B3F]">
         <TouchableOpacity onPress={() => router.back()} accessibilityLabel="Back">
           <Feather name="arrow-left" size={26} color="#E4E4E7" />
         </TouchableOpacity>
-        <Text className="text-[#F1F1F3] text-[30px] font-semibold tracking-tight">Activity Log</Text>
-        <TouchableOpacity onPress={clear} accessibilityLabel="Clear activity log">
-          <Text className="text-[#8C8C94] text-sm">Clear</Text>
-        </TouchableOpacity>
+        <Text className="text-[#F1F1F3] text-[30px] font-semibold tracking-tight ml-auto mr-auto">Activity Log</Text>
+        <View className="w-[26px]" />
       </View>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 32 }}>
         <View className="px-10 pt-6 pb-2">

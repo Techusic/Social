@@ -1,9 +1,16 @@
+import { useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, Image } from 'react-native';
 import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
+import { useWorldStore } from '../stores/worldStore';
 
 export default function AppHub() {
+  const [worldPickerOpen, setWorldPickerOpen] = useState(false);
+  const worlds = useWorldStore((state) => state.worlds);
+  const activeWorldId = useWorldStore((state) => state.activeWorldId);
+  const setActiveWorld = useWorldStore((state) => state.setActiveWorld);
+  const activeWorld = worlds.find((world) => world.id === activeWorldId) ?? worlds[0];
   return (
     <SafeAreaView className="flex-1 bg-[#121214]" edges={['top']}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
@@ -12,7 +19,7 @@ export default function AppHub() {
         <View className="flex-row justify-between items-center px-4 pt-2 pb-6">
           <Text className="text-white font-black text-3xl tracking-tighter">Social</Text>
           <View className="flex-row items-center gap-3">
-            <TouchableOpacity onPress={() => router.push('/')} className="bg-[#2A2A2A] flex-row items-center px-3 py-1.5 rounded-full">
+            <TouchableOpacity onPress={() => setWorldPickerOpen((open) => !open)} className="bg-[#2A2A2A] flex-row items-center px-3 py-1.5 rounded-full" accessibilityLabel="Choose active world">
               <MaterialCommunityIcons name="google-street-view" size={16} color="#9CA3AF" />
               <Feather name="chevron-down" size={16} color="#9CA3AF" className="ml-1" />
             </TouchableOpacity>
@@ -25,6 +32,23 @@ export default function AppHub() {
               <View className="absolute top-0 right-0 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-[#2A2A2A]" />
             </TouchableOpacity>
           </View>
+          {worldPickerOpen && (
+            <View className="absolute right-4 top-14 z-20 bg-[#29292F] border border-[#45454D] rounded-2xl p-2 min-w-48">
+              {worlds.map((world) => (
+                <TouchableOpacity
+                  key={world.id}
+                  onPress={() => {
+                    setActiveWorld(world.id);
+                    setWorldPickerOpen(false);
+                  }}
+                  className={`px-3 py-3 rounded-xl ${world.id === activeWorldId ? 'bg-[#263F68]' : ''}`}
+                >
+                  <Text className="text-white font-medium">{world.name}</Text>
+                  <Text className="text-gray-400 text-xs mt-1">{world.theme}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
         </View>
 
         {/* Banners */}
@@ -63,7 +87,7 @@ export default function AppHub() {
             <View className="flex-row justify-between items-center mb-5 bg-[#2A2A2A] self-start px-3 py-1.5 rounded-full w-full">
               <View className="flex-row items-center">
                 <Ionicons name="flash" size={14} color="#FBBF24" />
-                <Text className="text-white font-bold ml-2 text-sm">Harry Potter</Text>
+                <Text className="text-white font-bold ml-2 text-sm">{activeWorld?.name ?? 'World'}</Text>
               </View>
               <View className="flex-row items-center">
                 <Feather name="sun" size={14} color="#FBBF24" />

@@ -1,7 +1,10 @@
 import * as SQLite from 'expo-sqlite';
+export { worldStoreKey } from '../utils/worldKeys';
+import { worldStoreKey } from '../utils/worldKeys';
 
 const db = SQLite.openDatabaseSync('social-feed.db');
 const TABLE_NAME = 'social_store';
+const worldHydrators = new Set<(worldId: string) => void>();
 
 function ensureTable(): void {
   db.execSync(`
@@ -28,3 +31,11 @@ export function saveStore<T>(key: string, value: T): void {
   db.runSync(`INSERT OR REPLACE INTO ${TABLE_NAME} (key, value) VALUES (?, ?);`, [key, JSON.stringify(value)]);
 }
 
+export function registerWorldHydrator(hydrate: (worldId: string) => void): () => void {
+  worldHydrators.add(hydrate);
+  return () => worldHydrators.delete(hydrate);
+}
+
+export function hydrateWorldStores(worldId: string): void {
+  worldHydrators.forEach((hydrate) => hydrate(worldId));
+}

@@ -1,5 +1,6 @@
 import { create } from 'zustand';
-import { loadStore, saveStore } from '../db/worldPersistence';
+import { getActiveWorld } from './worldStore';
+import { loadStore, registerWorldHydrator, saveStore, worldStoreKey } from '../db/worldPersistence';
 import type { Notification, NotificationType } from '../types/notifications';
 
 type NotificationStore = {
@@ -11,14 +12,18 @@ type NotificationStore = {
   clear: () => void;
 };
 
-const initialNotifications = loadStore<Notification[]>('notifications') ?? [];
+function loadNotifications(worldId: string): Notification[] {
+  return loadStore<Notification[]>(worldStoreKey('notifications', worldId))
+    ?? (worldId === 'hogwarts' ? loadStore<Notification[]>('notifications') : null)
+    ?? [];
+}
 
-function persist(notifications: Notification[]): void {
-  saveStore('notifications', notifications.slice(0, 200));
+function persist(notifications: Notification[], worldId = getActiveWorld().id): void {
+  saveStore(worldStoreKey('notifications', worldId), notifications.slice(0, 200));
 }
 
 export const useNotificationStore = create<NotificationStore>((set, get) => ({
-  notifications: initialNotifications,
+  notifications: loadNotifications(getActiveWorld().id),
   unreadCount: () => get().notifications.filter((item) => !item.read).length,
   add: (notification) => set((state) => {
     const next: Notification[] = [
@@ -29,11 +34,13 @@ export const useNotificationStore = create<NotificationStore>((set, get) => ({
     return { notifications: next };
   }),
   markRead: (id) => set((state) => {
+    if (!state.notifications.some((item) => item.id === id && !item.read)) return state;
     const notifications = state.notifications.map((item) => item.id === id ? { ...item, read: true } : item);
     persist(notifications);
     return { notifications };
   }),
   markAllRead: () => set((state) => {
+    if (!state.notifications.some((item) => !item.read)) return state;
     const notifications = state.notifications.map((item) => ({ ...item, read: true }));
     persist(notifications);
     return { notifications };
@@ -44,7 +51,8 @@ export const useNotificationStore = create<NotificationStore>((set, get) => ({
   },
 }));
 
+registerWorldHydrator((worldId) => useNotificationStore.setState({ notifications: loadNotifications(worldId) }));
+
 export function addNotification(type: NotificationType, input: Omit<Notification, 'id' | 'type' | 'createdAt' | 'read'>): void {
   useNotificationStore.getState().add({ ...input, type });
 }
-
