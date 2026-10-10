@@ -1,13 +1,17 @@
 {
   "expo": {
-    "name": "social",
+    "name": "Social",
     "slug": "social",
     "version": "1.0.0",
-    "orientation": "portrait",
-    "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "automatic",
+    "scheme": "social",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.techusic.social"
+    },
+    "newArchEnabled": false,
+    "experiments": {
+      "typedRoutes": true
     },
     "android": {
       "adaptiveIcon": {
@@ -20,6 +24,22 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "plugins": [
+      "expo-sqlite",
+      "expo-image",
+      "expo-router",
+      "expo-status-bar",
+      "expo-asset",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow Social to access your photos so you can attach them to posts.",
+          "cameraPermission": "Allow Social to use your camera so you can attach photos to posts.",
+          "microphonePermission": false
+        }
+      ],
+      "expo-font"
+    ]
   }
 }
