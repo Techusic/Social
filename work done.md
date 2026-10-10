@@ -157,10 +157,11 @@ This document is the implementation log and handoff checklist for the Social app
 - Added bounded in-character response generation based on persona, relationship, target post, and memory.
 - Connected generated NPC text to autonomous feed ticks.
 - Documented the adapter boundary for replacing templates with an on-device language model later.
-- Added an optional `llama.rn` on-device GGUF model adapter for character chat.
+- Added an optional `llama.rn` on-device GGUF model adapter for character chat and simulated public posts/replies.
 - Added first-use model download, native development-build configuration, and deterministic fallback behavior.
 - Added Expo development-client and EAS profiles for iOS native builds.
 - Added visible local-AI status in the Feed and conversations.
+- Added local-AI text replacement for simulated public posts and replies, not only direct messages.
 
 ### Stories
 
@@ -241,6 +242,7 @@ Status: Core local simulation and settings integration complete. Broader autonom
 
 - Add narrative-day and event-aware triggers.
 - Add true background simulation scheduling when the app is backgrounded.
+- Add model-aware pacing so multiple simultaneous AI generations do not compete for device resources.
 
 ### 4. Complete messaging
 
@@ -280,6 +282,8 @@ Status: Local prototype complete; backend integration remains.
 
 - Added `BUGS.md` with confirmed fixes and remaining technical debt.
 - Documented the Goals progression model, achievement persistence, and current simulation limitations.
+- Added `agenthelp.md` as an AI-agent onboarding and continuation guide.
+- Reconciled setup, iOS development-build, local-AI, full-cast simulation, chat eligibility, and persistence documentation.
 
 ## Current limitations
 

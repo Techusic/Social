@@ -15,6 +15,7 @@ The current implementation is a local-first social simulation with Zustand state
 - NativeWind/Tailwind styling
 - Expo SQLite for local persistence
 - llama.rn for optional on-device GGUF language-model generation
+- Expo Dev Client for native development builds
 - Expo Image Picker for post and character media
 - Expo Vector Icons and Expo Font
 
@@ -35,10 +36,12 @@ npm run start
 Useful platform commands:
 
 ```powershell
-npm run android
-npm run ios
+npm run android # native Android development build
+npm run ios # native iOS development build; requires macOS/Xcode
 npm run web
 ```
+
+For Expo Go-only JavaScript testing, use `npm run start`. Native `llama.rn` inference requires the iOS development-client workflow described below.
 
 For a clean Metro cache when route or module errors appear:
 
@@ -53,9 +56,11 @@ Run the project checks before committing:
 ```powershell
 npx tsc --noEmit
 npx expo lint
-npx expo export --platform android
+npx expo export --platform ios
 npm test
 ```
+
+`npx expo export --platform android` is also useful for checking cross-platform JavaScript bundling. It does not prove that native local AI works on a device.
 
 ## Main user flows
 
@@ -117,7 +122,7 @@ The Goals screen combines event XP and achievement XP into a live level, display
 
 ## On-device AI
 
-Character chat and simulated public NPC posts/replies use [utils/localAi.ts](./utils/localAi.ts) to run a quantized Qwen GGUF model locally through `llama.rn`. The Feed and conversation surfaces show whether the model is loading, ready, or using the deterministic fallback. The feed publishes a deterministic reaction immediately, then replaces its text with an on-device model response when the model is ready. The model is downloaded once to the device on the first AI response and stored in the app's document directory. The model is not bundled in the repository because it is a large binary asset.
+Character chat and simulated public NPC posts/replies use [utils/localAi.ts](./utils/localAi.ts) to run a quantized Qwen GGUF model locally through `llama.rn`. The Feed and conversation surfaces show whether the model is loading, ready, or using the deterministic fallback. The feed publishes a deterministic reaction immediately, then replaces its text with an on-device model response when the model is ready. The model is downloaded once to the device on the first AI response and stored in the app's document directory. The model is not bundled in the repository because it is a large binary asset. The current adapter does not yet expose download percentage or model deletion controls.
 
 Because `llama.rn` is native code, on-device AI requires a development build generated with CNG; it does not run in Expo Go. If the model cannot be downloaded or initialized, chat falls back to the deterministic local NPC engine and remains usable. Build after installing dependencies with `npx expo prebuild` followed by the platform development build command.
 
@@ -148,4 +153,4 @@ The first AI response downloads the GGUF model over HTTPS. Keep the app open and
 
 ## Project status
 
-The local prototype is functionally complete for its current scope. World, feed, story, message, event, activity-log, and notification state persist locally. The NPC layer is deterministic and local-first: persona traits, memories, relationship context, and world settings drive autonomous actions and template-based text generation. Backend synchronization, an optional neural on-device model, remote push notifications, moderation, authentication, and App Store payments remain integration work rather than missing local UI.
+The local prototype is functionally complete for its current scope. World, feed, story, message, event, activity-log, notification, and achievement state persist locally. The active-app NPC layer advances the full public cast every 30 seconds and uses deterministic decisions with optional local GGUF text generation. Backend synchronization, true background simulation, remote push notifications, moderation, authentication, richer content, and App Store payments remain integration work rather than missing local UI.
