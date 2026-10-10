@@ -14,6 +14,7 @@ The current implementation is a local-first social simulation with Zustand state
 - Zustand
 - NativeWind/Tailwind styling
 - Expo SQLite for local persistence
+- llama.rn for optional on-device GGUF language-model generation
 - Expo Image Picker for post and character media
 - Expo Vector Icons and Expo Font
 
@@ -102,7 +103,7 @@ Persistence is device-local and is not account synchronization. Clearing app dat
 - News Accounts controls news-account publishing.
 - Player-facing NPC actions create persisted notifications and can unlock achievements.
 
-The feed runs a simulation tick every 30 seconds while the feed screen is mounted. Each tick evaluates the NPC's persona, relationship, memories, target post, and active-world settings before choosing an action.
+The app runs a simulation cycle every 30 seconds at the root level, independent of the current screen. Each cycle advances the full NPC cast. Every NPC evaluates its persona, relationship, memories, target post, and active-world settings before choosing an action, so new public posts and replies continue to appear while the player browses other screens.
 
 The app hub world picker switches the active world. Switching worlds hydrates each persisted store from that world's namespace, so feed content, stories, messages, events, logs, notifications, and simulation progress do not mix between worlds.
 
@@ -110,7 +111,40 @@ NPCs can interact with the player and with other characters. Depending on relati
 
 NPC reactions can unlock persisted achievements such as The Conversation Starts, Name in the Feed, Quiet Approval, Passed Along, People Are Watching, An Owl Arrives, Story Reaction, Something Changed, and Social Gravity. Each achievement grants XP, records an activity-log entry, and creates an achievement notification. Unlocks are isolated per world.
 
+The player can publish from the Feed composer. Direct messages are intentionally limited to main characters; NPC/news accounts can participate publicly but do not appear in the chat picker.
+
 The Goals screen combines event XP and achievement XP into a live level, displays progress toward the next level, lists locked and unlocked achievements, and shows the next available milestone. Progression calculations are shared through [utils/progression.ts](./utils/progression.ts).
+
+## On-device AI
+
+Character chat and simulated public NPC posts/replies use [utils/localAi.ts](./utils/localAi.ts) to run a quantized Qwen GGUF model locally through `llama.rn`. The Feed and conversation surfaces show whether the model is loading, ready, or using the deterministic fallback. The feed publishes a deterministic reaction immediately, then replaces its text with an on-device model response when the model is ready. The model is downloaded once to the device on the first AI response and stored in the app's document directory. The model is not bundled in the repository because it is a large binary asset.
+
+Because `llama.rn` is native code, on-device AI requires a development build generated with CNG; it does not run in Expo Go. If the model cannot be downloaded or initialized, chat falls back to the deterministic local NPC engine and remains usable. Build after installing dependencies with `npx expo prebuild` followed by the platform development build command.
+
+### iOS development build
+
+The native local model runs on iOS only inside a development build. On a Mac with Xcode and CocoaPods installed:
+
+```powershell
+npx expo prebuild
+npx expo run:ios
+npx expo start --dev-client
+```
+
+From Windows, use EAS to build the iOS development client remotely:
+
+```powershell
+npx eas-cli@latest login
+npx eas-cli@latest build --profile development --platform ios
+```
+
+Install the resulting development build on the iPhone, then start Metro with:
+
+```powershell
+npx expo start --dev-client
+```
+
+The first AI response downloads the GGUF model over HTTPS. Keep the app open and connected to Wi-Fi during that initial download. The model is cached locally afterward.
 
 ## Project status
 

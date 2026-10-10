@@ -6,6 +6,7 @@ import type { FeedMode } from '../db/feedPersistence';
 import type { NPCMemory, NPCProfile, PlayerEngagementStats, Post, RelationshipState, Reply } from '../types/feed';
 import { getVisiblePosts, rankPosts, sortPostsChronologically } from '../utils/feedRanking';
 import { decideNpcAction, generateNpcText } from '../utils/npcEngine';
+import { generateLocalNpcText } from '../utils/localAi';
 import { useActivityLogStore } from './activityLogStore';
 import { useStoryStore } from './storyStore';
 import { useMessageStore } from './messageStore';
@@ -451,8 +452,9 @@ export const useFeedStore = create<FeedStore>((set, get) => ({
       if (effectiveAction === 'ignore' || (chaosMultiplier < 1 && nextTick % 3 === 0)) return { simulationTick: nextTick, posts: viewedPosts };
 
       if (effectiveAction === 'reply') {
+        const replyId = `${npc.id}-sim-${nextTick}`;
         const reply: Reply = {
-          id: `${npc.id}-sim-${nextTick}`,
+          id: replyId,
           postId: target.id,
           authorId: npc.id,
           authorName: npc.name,
@@ -466,13 +468,30 @@ export const useFeedStore = create<FeedStore>((set, get) => ({
           addNotification('reply', { actorId: npc.id, actorName: npc.name, actorAvatar: npc.avatar, title: `${npc.name} replied to you`, body: reply.body, targetId: target.id });
           unlockAchievement(reply.body.includes('@raghav') ? 'first-mention' : 'first-reply', npc.id);
         }
-        return {
+        const nextState = {
           simulationTick: nextTick,
           repliesByPost: { ...state.repliesByPost, [target.id]: [...(state.repliesByPost[target.id] ?? []), reply] },
           posts: viewedPosts.map((post) => post.id === target.id ? { ...post, comments: post.comments + 1, tension: Math.min(1, post.tension + 0.02) } : post),
           relationships: { ...state.relationships, [npc.id]: { ...relationship, affinity: Math.min(1, relationship.affinity + 0.01), lastInteractionAt: Date.now() } },
           memories: { ...state.memories, [npc.id]: [...(state.memories[npc.id] ?? []), { id: `${npc.id}-memory-${nextTick}`, npcId: npc.id, summary: `The player drew attention around "${target.content.slice(0, 40)}".`, emotionalWeight: target.tension, importance: Math.min(1, target.tension + 0.2), createdAt: Date.now() }] },
         };
+        void generateLocalNpcText(
+          npc,
+          `Reply to this post: "${target.content}". Existing deterministic draft: "${reply.body}".`,
+        ).then((text) => {
+          if (!text) return;
+          useFeedStore.setState((current) => ({
+            repliesByPost: {
+              ...current.repliesByPost,
+              [target.id]: (current.repliesByPost[target.id] ?? []).map((item) =>
+                item.id === replyId
+                  ? { ...item, body: target.authorId === 'player' && reply.body.startsWith('@raghav') ? `@raghav ${text}` : text }
+                  : item,
+              ),
+            },
+          }));
+        });
+        return nextState;
       }
 
       const generatedPost: Post = {
@@ -510,6 +529,19 @@ export const useFeedStore = create<FeedStore>((set, get) => ({
         }
       }
       if (npc.id === 'quidditch-stats' && !world.settings.newsAccounts) return { simulationTick: nextTick, posts: viewedPosts };
+      void generateLocalNpcText(
+        npc,
+        `Write a short social post inspired by this target: "${target.content}". Existing deterministic draft: "${generatedPost.content}".`,
+      ).then((text) => {
+        if (!text) return;
+        useFeedStore.setState((current) => ({
+          posts: current.posts.map((post) =>
+            post.id === generatedPost.id
+              ? { ...post, content: target.authorId === 'player' && generatedPost.content.startsWith('@raghav') ? `@raghav ${text}` : text }
+              : post,
+          ),
+        }));
+      });
       return { simulationTick: nextTick, posts: [generatedPost, ...viewedPosts] };
     }),
 }));

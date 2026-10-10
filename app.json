@@ -19,7 +19,8 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.techusic.social"
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -30,6 +31,7 @@
       "expo-router",
       "expo-status-bar",
       "expo-asset",
+      "llama.rn",
       [
         "expo-image-picker",
         {

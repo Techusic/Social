@@ -3,9 +3,12 @@ import { Feather, MaterialIcons, MaterialCommunityIcons } from '@expo/vector-ico
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useMessageStore } from '../../stores/messageStore';
+import { npcProfiles } from '../../stores/feedStore';
+import { canChatWith } from '../../utils/profileLinks';
 
 export default function Chat() {
-  const conversation = useMessageStore((state) => state.conversations.ginny);
+  const conversations = useMessageStore((state) => state.conversations);
+  const chatProfiles = npcProfiles.filter((profile) => canChatWith(profile.id));
 
   return (
     <SafeAreaView className="flex-1 bg-[#121214]" edges={['top']}>
@@ -26,17 +29,23 @@ export default function Chat() {
         </View>
 
         {/* Chat List */}
-        <TouchableOpacity onPress={() => router.push('/conversation')} className="flex-row items-center py-3" accessibilityLabel="Open conversation with Ginny Weasley">
-          <Image source={{ uri: conversation?.avatar ?? 'https://i.pravatar.cc/150?u=ginny' }} className="w-14 h-14 rounded-full mr-4" />
-          <View className="flex-1">
-            <View className="flex-row items-center mb-1">
-              <Text className="text-white font-bold text-base mr-1">{conversation?.participantName ?? 'Ginny Weasley'}</Text>
-              <MaterialIcons name="verified" size={14} color="#3B82F6" />
-            </View>
-            <Text className="text-gray-400 text-sm" numberOfLines={2}>{conversation?.messages[conversation.messages.length - 1]?.body ?? 'No messages yet.'}</Text>
-          </View>
-          {!!conversation?.unreadCount && <View className="bg-blue-500 rounded-full min-w-5 h-5 items-center justify-center"><Text className="text-white text-xs">{conversation.unreadCount}</Text></View>}
-        </TouchableOpacity>
+        {chatProfiles.map((profile) => {
+          const conversation = conversations[profile.id];
+          const latest = conversation?.messages.at(-1);
+          return (
+            <TouchableOpacity key={profile.id} onPress={() => router.push({ pathname: '/conversation', params: { id: profile.id } })} className="flex-row items-center py-3" accessibilityLabel={`Open conversation with ${profile.name}`}>
+              <Image source={{ uri: profile.avatar }} className="w-14 h-14 rounded-full mr-4" />
+              <View className="flex-1">
+                <View className="flex-row items-center mb-1">
+                  <Text className="text-white font-bold text-base mr-1">{profile.name}</Text>
+                  {profile.verified && <MaterialIcons name="verified" size={14} color="#3B82F6" />}
+                </View>
+                <Text className="text-gray-400 text-sm" numberOfLines={2}>{latest?.body ?? 'No messages yet.'}</Text>
+              </View>
+              {!!conversation?.unreadCount && <View className="bg-blue-500 rounded-full min-w-5 h-5 items-center justify-center"><Text className="text-white text-xs">{conversation.unreadCount}</Text></View>}
+            </TouchableOpacity>
+          );
+        })}
       </View>
 
       <TouchableOpacity onPress={() => router.push('/new-chat')} className="absolute bottom-6 right-4 w-14 h-14 bg-blue-500 rounded-full items-center justify-center shadow-lg" accessibilityLabel="Start a new chat">

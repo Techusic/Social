@@ -157,6 +157,10 @@ This document is the implementation log and handoff checklist for the Social app
 - Added bounded in-character response generation based on persona, relationship, target post, and memory.
 - Connected generated NPC text to autonomous feed ticks.
 - Documented the adapter boundary for replacing templates with an on-device language model later.
+- Added an optional `llama.rn` on-device GGUF model adapter for character chat.
+- Added first-use model download, native development-build configuration, and deterministic fallback behavior.
+- Added Expo development-client and EAS profiles for iOS native builds.
+- Added visible local-AI status in the Feed and conversations.
 
 ### Stories
 
@@ -199,7 +203,10 @@ This document is the implementation log and handoff checklist for the Social app
 - Added typed NPC archetypes, profiles, and relationship state.
 - Added a controlled simulation tick that produces NPC posts and NPC replies.
 - Added relationship affinity changes after simulated NPC interaction.
-- Connected the feed screen to a cleaned-up 30-second simulation interval.
+- Moved simulation scheduling to the root app layout so it continues outside the Feed.
+- Advanced the full NPC cast on each simulation cycle so new posts and replies appear from all public actors.
+- Kept player posts in the same live feed and preserved the Feed composer.
+- Restricted direct messages to main characters while keeping NPC/news accounts public-only.
 
 ## Remaining work, in order
 
@@ -208,7 +215,7 @@ This document is the implementation log and handoff checklist for the Social app
 The local-first prototype surface is complete. The following work requires external services or native product decisions:
 
 - Add authentication, moderation/reporting, and privacy controls.
-- Replace template NPC generation with an approved hosted or on-device model adapter.
+- Improve the on-device model adapter with model-management UI and downloadable model selection.
 - Add remote push notifications and background scheduling.
 - Add real App Store purchases/subscriptions through a development build.
 - Add media upload/CDN storage and production analytics.
@@ -233,7 +240,7 @@ Status: Core implementation complete. Advanced balancing and persistence remain.
 Status: Core local simulation and settings integration complete. Broader autonomous behavior remains.
 
 - Add narrative-day and event-aware triggers.
-- Add background simulation scheduling independent of the feed screen.
+- Add true background simulation scheduling when the app is backgrounded.
 
 ### 4. Complete messaging
 
@@ -279,6 +286,6 @@ Status: Local prototype complete; backend integration remains.
 - Store state is persisted locally but is not synchronized to an account or backend.
 - Seeded content uses placeholder remote avatar and cover-image URLs.
 - Chat messages are local and not synchronized.
-- NPC simulation is deterministic and only runs while the feed screen is mounted.
+- NPC simulation runs at app level while the app is active; true background execution remains unimplemented.
 - Reply likes and nested threads remain local-only.
 - There is no authentication, backend, moderation, or push-notification service.

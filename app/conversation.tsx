@@ -4,6 +4,7 @@ import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useMessageStore } from '../stores/messageStore';
+import { getLocalAiStatus, subscribeLocalAiStatus, type LocalAiStatus } from '../utils/localAi';
 
 function formatTime(timestamp: number): string {
   return new Date(timestamp).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
@@ -18,10 +19,12 @@ export default function Conversation() {
   const [draft, setDraft] = useState('');
   const [bannerVisible, setBannerVisible] = useState(true);
   const [ratedMessages, setRatedMessages] = useState<string[]>([]);
+  const [aiStatus, setAiStatus] = useState<LocalAiStatus>(getLocalAiStatus());
 
   useEffect(() => {
     markConversationRead(conversationId);
   }, [conversationId, markConversationRead]);
+  useEffect(() => subscribeLocalAiStatus(setAiStatus), []);
 
   if (!conversation) return null;
 
@@ -46,7 +49,7 @@ export default function Conversation() {
 
         {bannerVisible && <View className="flex-row items-center bg-[#4C168A] px-6 py-4">
           <MaterialCommunityIcons name="message-star" size={28} color="#D8A6FF" />
-          <Text className="text-[#D8A6FF] text-sm ml-4 flex-1">Characters message you first with Status Plus</Text>
+          <Text className="text-[#D8A6FF] text-sm ml-4 flex-1">{aiStatus === 'ready' ? 'On-device AI is writing this character.' : aiStatus === 'loading' ? 'Downloading the local character model…' : 'Character replies use local AI when available.'}</Text>
           <TouchableOpacity onPress={() => setBannerVisible(false)} accessibilityLabel="Dismiss proactive chat banner"><Feather name="x" size={25} color="#D8A6FF" /></TouchableOpacity>
         </View>}
 

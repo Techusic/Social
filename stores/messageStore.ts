@@ -5,8 +5,10 @@ import type { ChatMessage, ConversationState } from '../types/messaging';
 import type { NPCProfile } from '../types/feed';
 import { npcProfiles } from './feedStore';
 import { generateNpcText } from '../utils/npcEngine';
+import { generateLocalNpcText } from '../utils/localAi';
 import { useActivityLogStore } from './activityLogStore';
 import { addNotification } from './notificationStore';
+import { canChatWith } from '../utils/profileLinks';
 
 const conversationId = 'ginny';
 const initialTime = Date.now();
@@ -50,14 +52,16 @@ function persistConversations(conversations: Record<string, ConversationState>, 
   saveStore(worldStoreKey('messages', worldId), conversations);
 }
 
-function buildResponse(body: string): string {
+async function buildResponse(body: string, participantId: string): Promise<string> {
   const normalized = body.toLowerCase();
-  const ginny = npcProfiles.find((npc) => npc.id === 'ginny');
-  if (normalized.includes('sorry')) return 'That is a start. Do not make me regret answering.';
-  if (normalized.includes('practice')) return 'You remembered practice? Miracles really do happen.';
-  if (normalized.includes('?')) return 'You ask a lot of questions for someone who keeps causing trouble.';
-  if (!ginny) return 'Interesting. I will pretend that was almost sensible.';
-  return generateNpcText(ginny, {
+  const profile = npcProfiles.find((npc) => npc.id === participantId) ?? npcProfiles[0];
+  const fallback = normalized.includes('sorry')
+    ? 'That is a start. Do not make me regret answering.'
+    : normalized.includes('practice')
+      ? 'You remembered practice? Miracles really do happen.'
+      : normalized.includes('?')
+        ? 'You ask a lot of questions for someone who keeps causing trouble.'
+        : generateNpcText(profile, {
     id: 'chat-context',
     authorId: 'player',
     authorName: 'You',
@@ -73,6 +77,8 @@ function buildResponse(body: string): string {
     tension: 0.35,
     affinity: 0,
   });
+  const generated = await generateLocalNpcText(profile, `The player said: "${body}" Respond naturally.`);
+  return generated ?? fallback;
 }
 
 export const useMessageStore = create<MessageStore>((set) => ({
@@ -147,14 +153,15 @@ export const useMessageStore = create<MessageStore>((set) => ({
       });
     }, 500);
 
-    setTimeout(() => {
+    setTimeout(async () => {
+      const responseBody = await buildResponse(trimmed, id);
       set((state) => {
         const conversation = state.conversations[id];
         if (!conversation) return state;
         const response: ChatMessage = {
           id: `character-${Date.now()}`,
           conversationId: id,
-          body: buildResponse(trimmed),
+          body: responseBody,
           side: 'character',
           createdAt: Date.now(),
           delivery: 'read',
@@ -172,6 +179,7 @@ export const useMessageStore = create<MessageStore>((set) => ({
   },
 
   receiveMessage: (profile, body) => {
+    if (!canChatWith(profile.id)) return;
     const trimmed = body.trim();
     if (!trimmed) return;
     const createdAt = Date.now();

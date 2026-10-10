@@ -5,13 +5,14 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { npcProfiles } from '../stores/feedStore';
 import { useMessageStore } from '../stores/messageStore';
+import { canChatWith } from '../utils/profileLinks';
 
 export default function NewChat() {
   const [query, setQuery] = useState('');
   const startConversation = useMessageStore((state) => state.startConversation);
   const conversations = useMessageStore((state) => state.conversations);
   const filteredProfiles = useMemo(
-    () => npcProfiles.filter((profile) => `${profile.name} ${profile.handle}`.toLowerCase().includes(query.trim().toLowerCase())),
+    () => npcProfiles.filter((profile) => canChatWith(profile.id) && `${profile.name} ${profile.handle}`.toLowerCase().includes(query.trim().toLowerCase())),
     [query],
   );
 

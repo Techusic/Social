@@ -6,23 +6,29 @@ import { router } from 'expo-router';
 import PostCard from '../../components/PostCard';
 import { getVisiblePosts, useFeedStore } from '../../stores/feedStore';
 import { useStoryStore } from '../../stores/storyStore';
+import { getLocalAiStatus, subscribeLocalAiStatus, type LocalAiStatus } from '../../utils/localAi';
 
 export default function Feed() {
   const [actionsOpen, setActionsOpen] = useState(false);
+  const [aiStatus, setAiStatus] = useState<LocalAiStatus>(getLocalAiStatus());
   const posts = useFeedStore((state) => state.posts);
   const feedMode = useFeedStore((state) => state.feedMode);
   const playerStats = useFeedStore((state) => state.playerStats);
   const toggleLike = useFeedStore((state) => state.toggleLike);
   const toggleRepost = useFeedStore((state) => state.toggleRepost);
-  const simulateNpcTick = useFeedStore((state) => state.simulateNpcTick);
   const setFeedMode = useFeedStore((state) => state.setFeedMode);
   const stories = useStoryStore((state) => state.stories);
   const visiblePosts = getVisiblePosts(posts, feedMode);
 
-  useEffect(() => {
-    const interval = setInterval(simulateNpcTick, 30000);
-    return () => clearInterval(interval);
-  }, [simulateNpcTick]);
+  useEffect(() => subscribeLocalAiStatus(setAiStatus), []);
+
+  const aiLabel = aiStatus === 'ready'
+    ? 'On-device AI active'
+    : aiStatus === 'loading'
+      ? 'AI loading model…'
+      : aiStatus === 'error'
+        ? 'AI unavailable · fallback active'
+        : 'AI ready on first character reaction';
 
   return (
     <SafeAreaView className="flex-1 bg-[#0A0A0A]" edges={['top']}>
@@ -48,6 +54,11 @@ export default function Feed() {
             <Ionicons name="flash" size={20} color="#FBBF24" className="mx-1" />
             <View className="w-[1px] h-5 bg-gray-700 mx-2" />
             <Text className="text-yellow-500 font-black text-sm tracking-widest">MAX</Text>
+          </View>
+          <View className="px-4 pb-1">
+            <Text className={`text-xs ${aiStatus === 'ready' ? 'text-emerald-400' : aiStatus === 'error' ? 'text-amber-400' : 'text-gray-500'}`}>
+              {aiLabel}
+            </Text>
           </View>
           <View className="flex-row items-center bg-[#1A1A1A] rounded-xl p-2 min-w-[80px] border border-gray-800">
             <MaterialCommunityIcons name="hexagon-slice-6" size={20} color="#A855F7" className="mx-1" />

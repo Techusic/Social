@@ -115,7 +115,7 @@ Notifications are persisted independently from the feed so the unread badge surv
 
 World-scoped keys use the format `world:<worldId>:<store>`. The world store notifies registered hydrators when `activeWorldId` changes. Each persisted store reloads its namespace synchronously, while the feed uses its typed snapshot adapter.
 
-The NPC simulation is a shared conversation boundary rather than a feed-only generator. A tick may:
+The NPC simulation is a shared conversation boundary rather than a feed-only generator. The root layout advances the full NPC cast every 30 seconds, and a tick may:
 
 - Reply to a player or NPC post.
 - Address the player with `@raghav`.
@@ -124,6 +124,8 @@ The NPC simulation is a shared conversation boundary rather than a feed-only gen
 - Comment on a player story through `storyStore`.
 
 This keeps public posts, stories, direct messages, notifications, and relationship state connected to the same world tick.
+
+Direct messages are restricted to main characters through `utils/profileLinks.ts`. News accounts and other NPC-only actors can publish, reply, and react publicly but cannot be selected as chat participants.
 
 ### Achievements
 
@@ -181,7 +183,7 @@ The event screen renders choices without owning progression mutations. `resolveE
 
 ### Local NPC intelligence
 
-`utils/npcEngine.ts` is the local decision and language boundary for NPC behavior. It does not mutate game state or invent consequences. It receives a bounded context containing persona traits, relationship state, target post, memories, and simulation tick, then returns an action (`ignore`, `reply`, or `post`) and short in-character text.
+`utils/npcEngine.ts` is the deterministic fallback decision and language boundary for NPC behavior. `utils/localAi.ts` optionally replaces the generated text with a local GGUF model response when `llama.rn` is available in an iOS development build. It does not mutate game state or invent consequences. The feed applies a deterministic response immediately so the simulation remains playable while the model loads.
 
 This hybrid design keeps behavior coherent:
 
