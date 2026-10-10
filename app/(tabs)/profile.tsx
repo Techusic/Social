@@ -5,6 +5,20 @@ import { router } from 'expo-router';
 import { useProfileStore } from '../../stores/profileStore';
 import { useActivityStore } from '../../stores/activityStore';
 
+function DivergingProgress({ value }: { value: number }) {
+  const width = `${Math.min(50, Math.abs(value))}%` as `${number}%`;
+  return (
+    <View className="h-3 bg-[#2A2A2A] rounded-full overflow-hidden relative">
+      {value >= 0 ? (
+        <View className="absolute left-1/2 top-0 bottom-0 bg-green-500" style={{ width }} />
+      ) : (
+        <View className="absolute right-1/2 top-0 bottom-0 bg-red-500" style={{ width }} />
+      )}
+      <View className="absolute left-1/2 top-0 bottom-0 w-0.5 bg-white/70" />
+    </View>
+  );
+}
+
 export default function Profile() {
   const profile = useProfileStore();
   const activities = useActivityStore((state) => state.activities);
@@ -146,9 +160,8 @@ export default function Profile() {
             </View>
             
             <View className="flex-row items-center mb-3">
-              <View className="flex-1 h-2 bg-[#2A2A2A] rounded-full flex-row">
-                <View className="h-full bg-gray-500 rounded-l-full" style={{ width: '40%' }} />
-                <View className="h-full bg-yellow-500 rounded-r-full" style={{ width: '5%' }} />
+              <View className="flex-1">
+                <DivergingProgress value={3.8} />
               </View>
               <Text className="text-white font-bold text-sm ml-3">3.8%</Text>
             </View>
@@ -157,11 +170,11 @@ export default function Profile() {
               <Text className="text-green-500 text-xs font-bold">+1.0%</Text>
             </View>
 
-            <TouchableOpacity onPress={() => router.push('/add-character')} className="bg-blue-500 py-3.5 rounded-xl flex-row justify-center items-center mt-6">
-              <Feather name="user-plus" size={16} color="white" />
-              <Text className="text-white font-bold ml-2">Add a new character!</Text>
-            </TouchableOpacity>
           </View>
+          <TouchableOpacity onPress={() => router.push('/add-character')} className="bg-blue-500 py-3.5 rounded-xl flex-row justify-center items-center mb-10" accessibilityLabel="Add a new character">
+            <Feather name="user-plus" size={16} color="white" />
+            <Text className="text-white font-bold ml-2">Add a new character!</Text>
+          </TouchableOpacity>
             </>
           )}
         </View>

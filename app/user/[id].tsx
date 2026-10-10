@@ -18,6 +18,20 @@ type UserProfile = {
   isPlayer?: boolean;
 };
 
+function DivergingProgress({ value }: { value: number }) {
+  const width = `${Math.min(50, Math.abs(value))}%` as `${number}%`;
+  return (
+    <View className="h-3 bg-[#3B3B42] rounded-full overflow-hidden relative mt-5">
+      {value >= 0 ? (
+        <View className="absolute left-1/2 top-0 bottom-0 bg-emerald-400" style={{ width }} />
+      ) : (
+        <View className="absolute right-1/2 top-0 bottom-0 bg-red-400" style={{ width }} />
+      )}
+      <View className="absolute left-1/2 top-0 bottom-0 w-0.5 bg-white/70" />
+    </View>
+  );
+}
+
 const profiles: Record<string, UserProfile> = {
   ginny: {
     name: 'Ginny Weasley',
@@ -128,10 +142,7 @@ export default function UserProfileScreen() {
                   <Text className="text-white text-xl">{profile.relationship}</Text>
                   <Text className="text-emerald-400 text-xl">+1.0%</Text>
                 </View>
-                <View className="h-9 bg-[#3B3B42] rounded-full mt-5 overflow-hidden">
-                  <View className="h-full w-[52%] bg-[#45454D]" />
-                  <View className="absolute left-[48%] top-0 bottom-0 w-3 bg-yellow-400 rounded-full" />
-                </View>
+                <DivergingProgress value={3.8} />
                 <Text className="text-white text-xl text-right mt-2">3.8%</Text>
                 <Text className="text-gray-300 text-xl leading-7 mt-1">{profile.relationshipDescription}</Text>
                 <TouchableOpacity className="bg-[#303037] rounded-full py-4 mt-6 flex-row items-center justify-center"><MaterialCommunityIcons name="account-heart" size={24} color="white" /><Text className="text-white text-xl ml-3">Change chemistry</Text></TouchableOpacity>

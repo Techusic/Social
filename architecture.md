@@ -127,6 +127,10 @@ The response generator is currently a lightweight offline adapter with templates
 
 `stores/activityStore.ts` owns planned roleplay activities created from `app/create-activity.tsx`. The profile Activities tab reads this shared state, while `search.tsx`, `settings.tsx`, and `store.tsx` provide local prototype surfaces for discovery, preferences, and energy/power-up concepts. These screens intentionally use local alerts or navigation instead of claiming to process real purchases or cloud account changes.
 
+### Profile relationship meters
+
+Relationship meters are rendered as diverging bars. The center line represents neutral chemistry; positive affinity grows to the right and negative affinity grows to the left. The add-character action is kept outside individual relationship cards so character management is not coupled to Ginny or any other NPC.
+
 ## Domain models
 
 `types/feed.ts` contains the feed contract:

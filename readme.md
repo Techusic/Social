@@ -65,6 +65,7 @@ npx expo export --platform android
 7. Create a custom character with a photo, identity, bio, description, and privacy setting.
 8. Open Profile → Activities to create planned roleplay activities.
 9. Use Search, Store, and Settings from the app hub and feed.
+10. Add characters from the standalone profile action; relationship meters use a centered neutral baseline, with positive values extending right and negative values extending left.
 
 ## Documentation
 

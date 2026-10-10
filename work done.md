@@ -152,6 +152,12 @@ This document is the implementation log and handoff checklist for the Social app
 - Added conversation banner dismissal, conversation actions feedback, and local message rating state.
 - Corrected post replies so a direct post reply mentions the post creator, while a reply-to-reply mentions the selected reply author.
 
+### Profile relationship and character-management polish
+
+- Moved the Add a new character action outside Ginny's relationship card.
+- Added centered diverging relationship meters to the player and character profile views.
+- Positive relationship values extend right from neutral; negative values extend left.
+
 ### Feed ranking and NPC simulation
 
 - Added engagement velocity to ranking so rapidly changing posts can rise without allowing large static counts to dominate forever.
